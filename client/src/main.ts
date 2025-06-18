@@ -10,7 +10,7 @@ async function main() {
     const ctx = canvas.getContext('2d')!;
     console.log("works");
     const temp = new SpriteComponent("floorTile");
-    const black = new SpriteComponent("abyssTile")
+    const black = new SpriteComponent("abyssTile");
     const arena = new Arena(temp, black);
     arena.render(400, 300, ctx);
   }
