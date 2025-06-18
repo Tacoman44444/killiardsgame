@@ -1,5 +1,6 @@
 import { loadAll } from "./AssetLoader.js"
-import { SpriteComponent } from "./Components/SpriteComponent.js";
+import { SpriteComponent } from "./Components.js";
+import { Arena } from "./Arena.js";
 
 async function main() {
 
@@ -9,8 +10,10 @@ async function main() {
     const ctx = canvas.getContext('2d')!;
     console.log("works");
     const temp = new SpriteComponent("floorTile");
-    ctx.drawImage(temp.img, temp.sprite.xOffset, temp.sprite.yOffset, temp.sprite.width, temp.sprite.height, 100, 100, temp.sprite.width, temp.sprite.height)
-}
+    const black = new SpriteComponent("abyssTile")
+    const arena = new Arena(temp, black);
+    arena.render(400, 300, ctx);
+  }
 
 main().catch(err => {
   console.error(err);

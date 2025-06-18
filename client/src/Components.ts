@@ -1,4 +1,4 @@
-import {images} from "../AssetLoader.js"
+import {images} from "./AssetLoader.js"
 
 export interface SpriteDef {
     src: string;
@@ -26,4 +26,22 @@ export class SpriteComponent {
         this.img = img;
     }
 
+}
+
+export class PositionComponent {
+    x: number;
+    y: number;
+    constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+    }
+}
+
+export class VelocityComponent {
+    x: number;
+    y: number;
+    constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+    }
 }

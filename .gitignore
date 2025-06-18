@@ -16,5 +16,21 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+# Dependency directories (only if using vendoring, optional)
+vendor/
+
+# Binaries (build output)
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go workspace stuff
+go.work
+go.work.sum
+
 # VS Code project settings (optional, if you use personal configs)
 .vscode/
