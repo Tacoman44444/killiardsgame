@@ -1,6 +1,7 @@
 //the primary role of the socket manager is to communicate with the server
 
 import { MapGenData } from "./Arena";
+import { SocketEventManager } from "./socketevent-manager";
 
 type PlayerState = {
     position_x: number;
@@ -27,14 +28,14 @@ type WallState = {
 type ClientMessage = 
     | {
         type: "create-room";
-        id: string;
+        id: number;
     }
     | {
         type: "start-game";
     }
     | {
         type: "join-room";
-        code: string;
+        code: number;
     }
     | {
         type: "send-wall";
@@ -48,7 +49,7 @@ type ClientMessage =
 type ServerMessage = 
     | {
         type: "room-created";
-        code: string;
+        code: number;
     }
     | {
         type: "game-start";
@@ -84,16 +85,19 @@ type ServerMessage =
 
 class SocketManager {
     private socket: WebSocket;
+    private eventManager: SocketEventManager;
     
-    constructor(url: string) {
+    constructor(url: string, eventManager: SocketEventManager) {
         this.socket = new WebSocket(url);
+        this.eventManager = eventManager;
+        this.socket.onmessage = (e) => this.eventManager;
     }
 
     private send(msg: ClientMessage) {
         this.socket.send(JSON.stringify(msg));
     }
 
-    sendCreateRoomRequest(playerID: string) {
+    sendCreateRoomRequest(playerID: number) {
         const msg: ClientMessage = {
             type: "create-room",
             id: playerID,
@@ -108,7 +112,7 @@ class SocketManager {
         this.send(msg);
     }
 
-    sendJoinRoomRequest(roomCode: string) {
+    sendJoinRoomRequest(roomCode: number) {
         const msg: ClientMessage = {
             type: "join-room",
             code: roomCode,
@@ -129,5 +133,17 @@ class SocketManager {
             type: "send-turn",
             action: PlayerAction,
         }
+    }
+
+    private handleMessage(e: MessageEvent) {
+        const raw = e.data as string;
+        let msg: ServerMessage;
+        try {
+            msg = JSON.parse(raw) as ServerMessage;
+        } catch (err) {
+            console.error("Bad JSON from the server: ", err);
+            return;
+        }
+        this.eventManager.emit(msg.type, msg);
     }
 }
