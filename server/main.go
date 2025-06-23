@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/Tacoman44444/killiardsgame/server/tools"
 	"github.com/gorilla/websocket"
 )
 
@@ -35,7 +36,12 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/ws", wsHandler)
-	log.Println("Listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	/*
+		http.HandleFunc("/ws", wsHandler)
+		log.Println("Listening on :8080")
+		log.Fatal(http.ListenAndServe(":8080", nil))
+	*/
+
+	arena := tools.GenerateMap(100, 100, nil, false, "")
+	arena.DebugLog()
 }

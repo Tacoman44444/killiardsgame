@@ -1,14 +1,12 @@
 package main
 
+import "github.com/Tacoman44444/killiardsgame/server/tools"
+
 type PlayerState struct {
 	position_x int
 	position_y int
 	velocity_x int
 	velocity_y int
-}
-
-type MapState struct {
-	arena [][]int
 }
 
 type WallState struct {
@@ -19,7 +17,7 @@ type WallState struct {
 
 type GameState struct {
 	players    map[int]PlayerState
-	mapState   MapState
+	mapState   tools.MapState
 	walls      []WallState
 	activeTurn int
 }

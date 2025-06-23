@@ -1,4 +1,4 @@
-package internal
+package tools
 
 import (
 	"fmt"
@@ -82,6 +82,8 @@ func PhysicsResolver(activePlayer *Circle, playerPositions []*Circle, walls []Re
 		}
 	}
 }
+
+// HELPER FUNCTIONS
 
 func ApplyImpulse(circle *Circle, shotData ShotData) {
 	circle.velocity = shotData.direction.Norm().Multiply(float64(shotData.power))
