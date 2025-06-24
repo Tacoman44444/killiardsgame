@@ -52,11 +52,13 @@ type ServerMessage =
         code: number;
     }
     | {
+        type: "room-joined"
+    }
+    | {
         type: "game-start";
         map: MapState;
-        playerPos: PlayerState;
-        otherPlayers: PlayerState[];
-
+        player: PlayerState;
+        other_players: PlayerState[];
     }
     | {
         type: "turn-start";
@@ -65,9 +67,14 @@ type ServerMessage =
         type: "turn-timeout";
     }
     | {
-        type: "player-update";
-        playerId: string;
-        newState: PlayerState;
+        type: "entity-update";
+        player: PlayerState;
+        other_players: PlayerState[];
+        walls: WallState[]
+    }
+    | {
+        type: "wall-update";
+        walls: WallState[];
     }
     | {
         type: "map-update";
@@ -75,11 +82,7 @@ type ServerMessage =
     }
     | {
         type: "game-finished";
-        winnerName: string;
-    }
-    | {
-        type: "wall-update";
-        walls: WallState[];
+        winner_name: string;
     };
 
 
