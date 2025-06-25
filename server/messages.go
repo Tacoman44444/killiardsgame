@@ -2,18 +2,18 @@ package main
 
 import "github.com/Tacoman44444/killiardsgame/server/tools"
 
-type ServerMessageType int
+type ServerMessageType string
 
 const (
-	ServerRoomCreated  ServerMessageType = 1
-	ServerRoomJoined   ServerMessageType = 2
-	ServerGameStart    ServerMessageType = 3
-	ServerTurnStart    ServerMessageType = 4
-	ServerTurnTimeout  ServerMessageType = 5
-	ServerEntityUpdate ServerMessageType = 6
-	ServerWallUpdate   ServerMessageType = 7
-	ServerMapUpdate    ServerMessageType = 8
-	ServerGameFinished ServerMessageType = 9
+	ServerRoomCreated  ServerMessageType = "room_created"
+	ServerRoomJoined   ServerMessageType = "room_joined"
+	ServerGameStart    ServerMessageType = "game_started"
+	ServerTurnStart    ServerMessageType = "turn_started"
+	ServerTurnTimeout  ServerMessageType = "turn_timeout"
+	ServerEntityUpdate ServerMessageType = "entity_update"
+	ServerWallUpdate   ServerMessageType = "wall_update"
+	ServerMapUpdate    ServerMessageType = "map_update"
+	ServerGameFinished ServerMessageType = "game_finished"
 )
 
 type ServerMessage interface {
@@ -118,4 +118,22 @@ func newMapUpdateMessage(mapState tools.MapState) MapUpdateMessage {
 
 func newGameFinishedMessage(winnerName string) GameFinishedMessage {
 	return GameFinishedMessage{ServerGameFinished, winnerName}
+}
+
+type ClientMessageType int
+
+const (
+	ClientCreateRoom ClientMessageType = 1
+	ClientStartGame  ClientMessageType = 2
+	ClientJoinRoom   ClientMessageType = 3
+	ClientSendWall   ClientMessageType = 4
+	ClientSendTurn   ClientMessageType = 5
+)
+
+type ClientMessage struct {
+	Type   ClientMessageType `json:"type"`
+	Name   string            `json:"name"`
+	Code   int               `json:"code"`
+	Wall   WallState         `json:"wall_state"`
+	Action PlayerAction      `json:"player_action"`
 }

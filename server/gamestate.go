@@ -3,15 +3,21 @@ package main
 import "github.com/Tacoman44444/killiardsgame/server/tools"
 
 type PlayerState struct {
-	position_x int
-	position_y int
-	velocity_x int
-	velocity_y int
+	Position_x float64
+	Position_y float64
+	Velocity_x float64
+	Velocity_y float64
+}
+
+type PlayerAction struct {
+	power              int
+	DirectionHorizonal float64
+	DirectionVertical  float64
 }
 
 type WallState struct {
-	position_x int
-	position_y int
+	position_x float64
+	position_y float64
 	turnsLeft  int
 }
 

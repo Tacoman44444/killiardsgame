@@ -28,22 +28,23 @@ type WallState = {
 type ClientMessage = 
     | {
         type: "create-room";
-        id: number;
+        name: string
     }
     | {
         type: "start-game";
     }
     | {
         type: "join-room";
+        name: string
         code: number;
     }
     | {
         type: "send-wall";
-        state: WallState;
+        wall_state: WallState;
     }
     | {
         type: "send-turn";
-        action: PlayerAction;
+        player_action: PlayerAction;
     };
 
 type ServerMessage = 
@@ -100,10 +101,10 @@ class SocketManager {
         this.socket.send(JSON.stringify(msg));
     }
 
-    sendCreateRoomRequest(playerID: number) {
+    sendCreateRoomRequest(player_name: string) {
         const msg: ClientMessage = {
             type: "create-room",
-            id: playerID,
+            name: player_name
         };
         this.send(msg);
     }
@@ -115,9 +116,10 @@ class SocketManager {
         this.send(msg);
     }
 
-    sendJoinRoomRequest(roomCode: number) {
+    sendJoinRoomRequest(player_name: string, roomCode: number) {
         const msg: ClientMessage = {
             type: "join-room",
+            name: player_name,
             code: roomCode,
         };
         this.send(msg);
@@ -126,7 +128,7 @@ class SocketManager {
     sendWall(wallState: WallState) {
         const msg: ClientMessage = {
             type: "send-wall",
-            state: wallState,
+            wall_state: wallState,
         };
         this.send(msg);
     }
@@ -134,7 +136,7 @@ class SocketManager {
     sendTurn(PlayerAction: PlayerAction) {
         const msg: ClientMessage = {
             type: "send-turn",
-            action: PlayerAction,
+            player_action: PlayerAction,
         }
     }
 
