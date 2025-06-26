@@ -34,13 +34,76 @@ func (m *MapState) DebugLog() {
 }
 
 const (
-	TILETYPE_WALKABLE = 0
-	TILETYPE_ABYSS    = 1
-	mapArraySize      = 200
-	randomFillPercent = 50
+	TILETYPE_WALKABLE       = 0
+	TILETYPE_ABYSS          = 1
+	mapArraySize            = 200
+	randomFillPercent       = 50
+	safeSpawnDistanceSquare = 36
 )
 
-func GenerateMap(width, height int, playerPositions []Circle, useCustomSeed bool, seedString string) MapState {
+func TileToWorldCoords(tileCoords Vector2Int) Vector2 {
+	return Vector2{}
+}
+
+func WorldToTileCoords(worldCoords Vector2) Vector2Int {
+	return Vector2Int{}
+}
+
+func GenerateSafeSpawns(number int, mapState *MapState) []Vector2 {
+	spawns := make([]Vector2, number)
+	spawnTiles := make([]Vector2Int, number)
+	for i := 0; i < number; i++ {
+		spawnTiles = append(spawnTiles, GetSafeTile(spawnTiles, mapState))
+	}
+	for i := range spawnTiles {
+		spawns = append(spawns, TileToWorldCoords(spawnTiles[i]))
+	}
+	return spawns
+}
+
+func GetSafeTile(tiles []Vector2Int, mapState *MapState) Vector2Int {
+	iteration := 0
+	for {
+		tile := GetWalkableTile(mapState)
+		if iteration > 100 {
+			fmt.Println("GetSafeTile() is not returning a safe tile -- 1/10 ragebait")
+			return tile
+		}
+		if len(tiles) == 0 {
+			return tile
+		} else {
+			ok := true
+			for i := range tiles {
+				if tile.DistanceSquared(tiles[i]) < safeSpawnDistanceSquare {
+					ok = false
+				}
+			}
+			if ok {
+				return tile
+			}
+		}
+		iteration++
+	}
+}
+
+func GetWalkableTile(mapState *MapState) Vector2Int {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	iteration := 0
+	for {
+		if iteration > 100 {
+			fmt.Println("GetWalkableTile() is not returning a walkable tile -- 0/10 ragebait")
+			return Vector2Int{-1, -1}
+		}
+		x := r.Intn(mapState.Height)
+		y := r.Intn(mapState.Width)
+		if mapState.Arena[x][y] == TILETYPE_WALKABLE {
+			return Vector2Int{x, y}
+		}
+		iteration++
+	}
+}
+
+func GenerateMap(width, height int, useCustomSeed bool, seedString string) MapState {
 	newArena := RandomFillMap(width, height, useCustomSeed, seedString)
 	for i := 0; i < 5; i++ {
 		SmoothMap(&newArena)

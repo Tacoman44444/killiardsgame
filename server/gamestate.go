@@ -22,8 +22,30 @@ type WallState struct {
 }
 
 type GameState struct {
-	players    map[int]PlayerState
+	players    map[string]PlayerState
 	mapState   tools.MapState
 	walls      []WallState
-	activeTurn int
+	activeTurn string
+}
+
+func GetNewGame(players []string) *GameState {
+
+	mapState := tools.GenerateMap(200, 200, false, "")
+	playerMap := make(map[string]PlayerState, len(players))
+	safeSpawns := tools.GenerateSafeSpawns(len(players), &mapState)
+	for i := range players {
+		playerMap[players[i]] = PlayerState{safeSpawns[i].X, safeSpawns[i].Y, 0, 0}
+	}
+	walls := make([]WallState, 10)
+	turn := players[0]
+
+	gamestate := GameState{
+		players:    playerMap,
+		mapState:   mapState,
+		walls:      walls,
+		activeTurn: turn,
+	}
+
+	return &gamestate
+
 }

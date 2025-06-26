@@ -14,10 +14,12 @@ type PlayerMessageType int
 const (
 	PlayerSendAction PlayerMessageType = iota
 	PlayerSendWall
+	PlayerStartGame
 )
 
 type PlayerMessage struct {
 	msgType PlayerMessageType
+	sender  *websocket.Conn
 	msg     ClientMessage
 }
 

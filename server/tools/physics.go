@@ -23,6 +23,17 @@ func (v Vector2) Norm() Vector2 {
 	return Vector2{}
 }
 
+type Vector2Int struct {
+	X int
+	Y int
+}
+
+func (v Vector2Int) Add(u Vector2Int) Vector2Int      { return Vector2Int{v.X + u.X, v.Y + u.Y} }
+func (v Vector2Int) Subtract(u Vector2Int) Vector2Int { return Vector2Int{v.X - u.X, v.Y - u.Y} }
+func (v Vector2Int) DistanceSquared(u Vector2Int) int {
+	return (v.X-u.X)*(v.X-u.X) + (v.Y-u.Y)*(v.Y-u.Y)
+}
+
 type WallCollisionType int
 
 const (

@@ -42,6 +42,6 @@ func main() {
 		log.Fatal(http.ListenAndServe(":8080", nil))
 	*/
 
-	arena := tools.GenerateMap(100, 100, nil, false, "")
+	arena := tools.GenerateMap(100, 100, false, "")
 	arena.DebugLog()
 }
