@@ -103,16 +103,16 @@ func GetWalkableTile(mapState *MapState) Vector2Int {
 	}
 }
 
-func GenerateMap(width, height int, useCustomSeed bool, seedString string) MapState {
+func GenerateMap(width, height int, useCustomSeed bool, seedString string) *MapState {
 	newArena := RandomFillMap(width, height, useCustomSeed, seedString)
 	for i := 0; i < 5; i++ {
-		SmoothMap(&newArena)
+		SmoothMap(newArena)
 	}
 	// NOT YET IMPLEMENTED A FUNCTION TO MAKE PLAYER TILES WALKABLES
 	return newArena
 }
 
-func RandomFillMap(width int, height int, useCustomSeed bool, seedString string) MapState {
+func RandomFillMap(width int, height int, useCustomSeed bool, seedString string) *MapState {
 	arena := make([][]int, height)
 	for r := range arena {
 		arena[r] = make([]int, width)
@@ -138,7 +138,7 @@ func RandomFillMap(width int, height int, useCustomSeed bool, seedString string)
 		}
 	}
 
-	return MapState{Arena: arena, Width: width, Height: height}
+	return &MapState{Arena: arena, Width: width, Height: height}
 
 }
 

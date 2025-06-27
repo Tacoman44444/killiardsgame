@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Tacoman44444/killiardsgame/server/tools"
 	"github.com/gorilla/websocket"
 )
 
@@ -18,28 +17,28 @@ const (
 )
 
 type PlayerMessage struct {
-	msgType PlayerMessageType
-	sender  *websocket.Conn
-	msg     ClientMessage
+	msgType  PlayerMessageType
+	sender   *websocket.Conn
+	senderID string
+	msg      ClientMessage
 }
 
 type Player struct {
 	id           string
 	conn         *websocket.Conn
 	socketClosed bool
-	state        PlayerState
 	clientMsg    chan ClientMessage
 	readLobby    chan LobbyMessage //lobby will write into this
 	lobby        *Lobby
 }
 
-func GetNewPlayer(id string, conn *websocket.Conn, playerPosition tools.Vector2) *Player {
+func GetNewPlayer(id string, conn *websocket.Conn) *Player {
 	player := &Player{
 		id:           id,
 		conn:         conn,
 		socketClosed: false,
-		state:        PlayerState{playerPosition.X, playerPosition.Y, 0, 0},
 		clientMsg:    make(chan ClientMessage),
+		readLobby:    make(chan LobbyMessage),
 	}
 
 	return player
@@ -134,7 +133,7 @@ func (p *Player) HandleLobbyMessage(lm LobbyMessage, channelOpen bool) {
 
 	switch lm.msgType {
 	case LobbySendEntityUpdate:
-		serverMsg := newEntityUpdateMessage(lm.player, lm.otherPlayers, lm.walls)
+		serverMsg := newEntityUpdateMessage(lm.player, lm.allPlayers, lm.walls)
 		p.WriteToClient(serverMsg, p.id)
 	case LobbySendWallUpdate:
 		serverMsg := newWallUpdateMessage(lm.walls)

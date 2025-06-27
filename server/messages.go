@@ -36,8 +36,8 @@ func (m RoomJoinedMessage) isServerMessage() {}
 type GameStartMessage struct {
 	Type         ServerMessageType `json:"type"`
 	Map          tools.MapState    `json:"map"`
-	Player       PlayerState       `json:"player"`
-	OtherPlayers []PlayerState     `json:"other_players"`
+	Player       PlayerIdentity    `json:"player"`
+	OtherPlayers []PlayerIdentity  `json:"other_players"`
 }
 
 func (m GameStartMessage) isServerMessage() {}
@@ -56,8 +56,8 @@ func (m TurnTimeoutMessage) isServerMessage() {}
 
 type EntityUpdateMessage struct {
 	Type         ServerMessageType `json:"type"`
-	Player       PlayerState       `json:"player_state"`
-	OtherPlayers []PlayerState     `json:"other_players"`
+	Player       PlayerIdentity    `json:"player_state"`
+	OtherPlayers []PlayerIdentity  `json:"other_players"`
 	Walls        []WallState       `json:"walls"`
 }
 
@@ -92,7 +92,7 @@ func newRoomJoinedMessage() RoomJoinedMessage {
 	return RoomJoinedMessage{ServerRoomJoined}
 }
 
-func newGameStartMessage(mapState tools.MapState, player PlayerState, otherPlayers []PlayerState) GameStartMessage {
+func newGameStartMessage(mapState tools.MapState, player PlayerIdentity, otherPlayers []PlayerIdentity) GameStartMessage {
 	return GameStartMessage{ServerGameStart, mapState, player, otherPlayers}
 }
 
@@ -104,7 +104,7 @@ func newTurnTimeoutMessage() TurnTimeoutMessage {
 	return TurnTimeoutMessage{ServerTurnTimeout}
 }
 
-func newEntityUpdateMessage(player PlayerState, otherPlayers []PlayerState, walls []WallState) EntityUpdateMessage {
+func newEntityUpdateMessage(player PlayerIdentity, otherPlayers []PlayerIdentity, walls []WallState) EntityUpdateMessage {
 	return EntityUpdateMessage{ServerEntityUpdate, player, otherPlayers, walls}
 }
 

@@ -51,13 +51,13 @@ type Rect struct {
 }
 
 type Circle struct {
-	center   Vector2
-	radius   float64
-	velocity Vector2
+	Center   Vector2
+	Radius   float64
+	Velocity Vector2
 }
 
 func (c *Circle) DistanceSquared(c1 *Circle) float64 {
-	return c.center.Subtract(c1.center).LengthSquared()
+	return c.Center.Subtract(c1.Center).LengthSquared()
 }
 
 type ShotData struct {
@@ -73,7 +73,7 @@ const (
 	maxSteps   = 30 * 120
 )
 
-func PhysicsResolver(activePlayer *Circle, playerPositions []*Circle, walls []Rect, shotData ShotData) {
+func PhysicsResolver(activePlayer *Circle, playerPositions []*Circle, walls []*Rect, shotData ShotData) {
 	ApplyImpulse(activePlayer, shotData)
 	slowFrames := 0
 	for step := 0; step < maxSteps; step++ {
@@ -97,26 +97,26 @@ func PhysicsResolver(activePlayer *Circle, playerPositions []*Circle, walls []Re
 // HELPER FUNCTIONS
 
 func ApplyImpulse(circle *Circle, shotData ShotData) {
-	circle.velocity = shotData.direction.Norm().Multiply(float64(shotData.power))
+	circle.Velocity = shotData.direction.Norm().Multiply(float64(shotData.power))
 }
 
 func Integrate(circles []*Circle) {
 	for i := range circles {
-		circles[i].center = circles[i].center.Add(circles[i].velocity.Multiply(dt))
+		circles[i].Center = circles[i].Center.Add(circles[i].Velocity.Multiply(dt))
 	}
 }
 
 func CheckCircleCircleCollision(c1 Circle, c2 Circle) bool {
-	return (c1.center.Subtract(c2.center).LengthSquared() < (c1.radius+c2.radius)*(c1.radius+c2.radius))
+	return (c1.Center.Subtract(c2.Center).LengthSquared() < (c1.Radius+c2.Radius)*(c1.Radius+c2.Radius))
 }
 
-func CheckCircleWallCollision(c1 Circle, wall Rect) WallCollisionType {
+func CheckCircleWallCollision(c1 Circle, wall *Rect) WallCollisionType {
 	threshold := -0.05
 
-	bottomCheck := (c1.center.Y + c1.radius) - (wall.topleft.Y - wall.height)
-	topCheck := (wall.topleft.Y) - (c1.center.Y - c1.radius)
-	leftCheck := (c1.center.X + c1.radius) - (wall.topleft.X)
-	rightCheck := (wall.topleft.X + wall.width) - (c1.center.X - c1.radius)
+	bottomCheck := (c1.Center.Y + c1.Radius) - (wall.topleft.Y - wall.height)
+	topCheck := (wall.topleft.Y) - (c1.Center.Y - c1.Radius)
+	leftCheck := (c1.Center.X + c1.Radius) - (wall.topleft.X)
+	rightCheck := (wall.topleft.X + wall.width) - (c1.Center.X - c1.Radius)
 
 	if bottomCheck < threshold || topCheck < threshold || leftCheck < threshold || rightCheck < threshold {
 		return NONE
@@ -135,41 +135,41 @@ func CheckCircleWallCollision(c1 Circle, wall Rect) WallCollisionType {
 }
 
 func DoPositionalCorrection(c1 *Circle, c2 *Circle) {
-	delta := c1.center.Subtract(c2.center)
+	delta := c1.Center.Subtract(c2.Center)
 	dist := delta.Length()
-	radSum := c1.radius + c2.radius
+	radSum := c1.Radius + c2.Radius
 
 	penetration := radSum - dist
 	normal := delta.Multiply(1 / dist)
 
-	c1.center = c1.center.Add(normal.Multiply(penetration * 0.5))
-	c2.center = c2.center.Add(normal.Multiply(penetration * 0.5))
+	c1.Center = c1.Center.Add(normal.Multiply(penetration * 0.5))
+	c2.Center = c2.Center.Add(normal.Multiply(penetration * 0.5))
 }
 
-func FixOverlapX(dir WallCollisionType, circle *Circle, wall Rect) {
+func FixOverlapX(dir WallCollisionType, circle *Circle, wall *Rect) {
 	if dir == LEFT {
-		overlap := (circle.center.X + circle.radius) - wall.topleft.X
+		overlap := (circle.Center.X + circle.Radius) - wall.topleft.X
 		if overlap > 0 {
-			circle.center.X -= (overlap + 0.1)
+			circle.Center.X -= (overlap + 0.1)
 		}
 	} else if dir == RIGHT {
-		overlap := (circle.center.X - circle.radius) - (wall.topleft.X + wall.width)
+		overlap := (circle.Center.X - circle.Radius) - (wall.topleft.X + wall.width)
 		if overlap < 0 {
-			circle.center.X -= (overlap - 0.1)
+			circle.Center.X -= (overlap - 0.1)
 		}
 	}
 }
 
-func FixOverlapY(dir WallCollisionType, circle *Circle, wall Rect) {
+func FixOverlapY(dir WallCollisionType, circle *Circle, wall *Rect) {
 	if dir == TOP {
-		overlap := (circle.center.Y + circle.radius) - wall.topleft.Y
+		overlap := (circle.Center.Y + circle.Radius) - wall.topleft.Y
 		if overlap > 0 {
-			circle.center.Y -= (overlap + 0.1)
+			circle.Center.Y -= (overlap + 0.1)
 		}
 	} else if dir == BOTTOM {
-		overlap := (circle.center.Y - circle.radius) - (wall.topleft.Y + wall.height)
+		overlap := (circle.Center.Y - circle.Radius) - (wall.topleft.Y + wall.height)
 		if overlap < 0 {
-			circle.center.Y -= (overlap - 0.1)
+			circle.Center.Y -= (overlap - 0.1)
 		}
 	}
 }
@@ -180,8 +180,8 @@ func ResolveCircleCircleCollisions(circles []*Circle) {
 		for j := i + 1; j < len(circles); j++ {
 			if CheckCircleCircleCollision(*circles[i], *circles[j]) {
 				DoPositionalCorrection(circles[i], circles[j])
-				relVel := circles[i].velocity.Subtract(circles[j].velocity)
-				delta := circles[i].center.Subtract(circles[j].center)
+				relVel := circles[i].Velocity.Subtract(circles[j].Velocity)
+				delta := circles[i].Center.Subtract(circles[j].Center)
 				dist := delta.Length()
 				normal := delta.Multiply(1 / dist)
 				speed := relVel.Dot(normal)
@@ -190,14 +190,14 @@ func ResolveCircleCircleCollisions(circles []*Circle) {
 				}
 
 				impulse := normal.Multiply(-speed)
-				circles[i].velocity = circles[i].velocity.Add(impulse)
-				circles[j].velocity = circles[j].velocity.Subtract(impulse)
+				circles[i].Velocity = circles[i].Velocity.Add(impulse)
+				circles[j].Velocity = circles[j].Velocity.Subtract(impulse)
 			}
 		}
 	}
 }
 
-func ResolveCircleWallCollisions(circles []*Circle, walls []Rect) {
+func ResolveCircleWallCollisions(circles []*Circle, walls []*Rect) {
 	for i := range circles {
 		for j := range walls {
 			collisionDirection := CheckCircleWallCollision(*circles[i], walls[j])
@@ -206,11 +206,11 @@ func ResolveCircleWallCollisions(circles []*Circle, walls []Rect) {
 			case NONE:
 
 			case TOP, BOTTOM:
-				circles[i].velocity.Y *= -1
+				circles[i].Velocity.Y *= -1
 				FixOverlapY(collisionDirection, circles[i], walls[j])
 				collisionDetected = true
 			case LEFT, RIGHT:
-				circles[i].velocity.X *= -1
+				circles[i].Velocity.X *= -1
 				FixOverlapX(collisionDirection, circles[i], walls[j])
 				collisionDetected = true
 			}
@@ -223,13 +223,13 @@ func ResolveCircleWallCollisions(circles []*Circle, walls []Rect) {
 
 func ApplyFriction(circles []*Circle) {
 	for i := range circles {
-		circles[i].velocity = circles[i].velocity.Multiply(drag)
+		circles[i].Velocity = circles[i].Velocity.Multiply(drag)
 	}
 }
 
 func AllStopped(circles []*Circle) bool {
 	for i := range circles {
-		if circles[i].velocity.LengthSquared() >= stop2 {
+		if circles[i].Velocity.LengthSquared() >= stop2 {
 			return false
 		}
 	}
@@ -239,6 +239,6 @@ func AllStopped(circles []*Circle) bool {
 
 func ResetVelocities(circles []*Circle) {
 	for i := range circles {
-		circles[i].velocity = Vector2{0, 0}
+		circles[i].Velocity = Vector2{0, 0}
 	}
 }
