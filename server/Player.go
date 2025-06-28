@@ -15,10 +15,13 @@ const (
 	PlayerSendWall
 	PlayerStartGame
 	PlayerSimulationDone
+	PlayerJoinRoom
+	PlayerCreateRoom
 )
 
 type PlayerMessage struct {
 	msgType  PlayerMessageType
+	player   *Player
 	sender   *websocket.Conn
 	senderID string
 	msg      ClientMessage
@@ -26,12 +29,12 @@ type PlayerMessage struct {
 
 /*
 POSSIBLE PLAYER STATES:
-
 1. PLAYER CONNECTED BUT NOT HAS NOT ENTERED ANY CODE (OR HAS JUST EXITED A LOBBY) -- IN HUB BUT NOT IN LOBBY
 2. PLAYER HAS REQUESTED FOR A LOBBY VIA A CODE
 3. PLAYER HAS BEEN GRANTED THE LOBBY, PLAYER IS NOW IN LOBBY BUT NOT IN GAME
 4. GAME HAS BEEN STARTED BY LOBBY OWNER, PLAYER IS NOW INGAME
 */
+
 type PlayerState interface {
 	Enter(player *Player)
 	HandleClientMessage(cm ClientMessage, channelOpen bool, player *Player)
@@ -41,7 +44,6 @@ type PlayerState interface {
 }
 
 type PlayerInHub struct {
-	hub *Hub
 }
 
 func (p *PlayerInHub) Enter(player *Player) {}
@@ -52,10 +54,32 @@ func (p *PlayerInHub) HandleClientMessage(cm ClientMessage, channelOpen bool, pl
 	}
 
 	switch cm.Type {
+	case ClientSendId:
+		player.id = cm.Id
 	case ClientCreateRoom:
-		// add room creation logic here when hub.go is implemented
+		if player.id != "" {
+			msg := PlayerMessage{
+				msgType:  PlayerCreateRoom,
+				player:   player,
+				sender:   player.conn,
+				senderID: player.id,
+				msg:      cm,
+			}
+
+			player.hub.readPlayer <- msg
+		}
 	case ClientJoinRoom:
-		//add room joining logic here when hub.go is implemented
+		if player.id != "" {
+			msg := PlayerMessage{
+				msgType:  PlayerJoinRoom,
+				player:   player,
+				sender:   player.conn,
+				senderID: player.id,
+				msg:      cm,
+			}
+
+			player.hub.readPlayer <- msg
+		}
 	}
 }
 
@@ -95,7 +119,7 @@ func (p *PlayerRequestedForLobby) HandleHubMessage(hm HubMessage, channelOpen bo
 	}
 
 	switch hm.msgType {
-	case SendPlayerToLobby:
+	case HubSendPlayerToLobby:
 		player.SetState(&PlayerInLobby{})
 	}
 }
@@ -143,16 +167,6 @@ func (p *PlayerInLobby) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, pl
 func (p *PlayerInLobby) HandleHubMessage(hm HubMessage, channelOpen bool, player *Player) {}
 
 func (p *PlayerInLobby) Exit() {}
-
-type Player struct {
-	id           string
-	conn         *websocket.Conn
-	socketClosed bool
-	state        PlayerState
-	clientMsg    chan ClientMessage
-	readLobby    chan LobbyMessage //lobby will write into this
-	lobby        *Lobby
-}
 
 type PlayerInGame struct{}
 
@@ -215,18 +229,32 @@ func (p *PlayerInGame) HandleHubMessage(hm HubMessage, channelOpen bool, player 
 
 func (p *PlayerInGame) Exit() {}
 
+type Player struct {
+	id           string
+	conn         *websocket.Conn
+	socketClosed bool
+	state        PlayerState
+	clientMsg    chan ClientMessage
+	readLobby    chan LobbyMessage //lobby will write into this
+	readHub      chan HubMessage
+	lobby        *Lobby
+	hub          *Hub
+}
+
 func (p *Player) SetState(newState PlayerState) {
 	p.state.Exit()
 	p.state = newState
 }
 
-func GetNewPlayer(id string, conn *websocket.Conn) *Player {
+func GetNewPlayer(conn *websocket.Conn, hub *Hub) *Player {
 	player := &Player{
-		id:           id,
+		id:           "",
 		conn:         conn,
 		socketClosed: false,
 		clientMsg:    make(chan ClientMessage),
 		readLobby:    make(chan LobbyMessage),
+		readHub:      make(chan HubMessage),
+		hub:          hub,
 	}
 
 	return player

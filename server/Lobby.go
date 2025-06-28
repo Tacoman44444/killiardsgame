@@ -17,10 +17,12 @@ const (
 	LobbySendTurnStart
 	LobbySendTurnTimeout
 	LobbySendGameStart
+	LobbyClose // :<
 )
 
 type LobbyMessage struct {
 	msgType    LobbyMessageType
+	lobbyCode  string
 	player     PlayerIdentity
 	allPlayers []PlayerIdentity
 	walls      []WallState
@@ -37,12 +39,31 @@ type LobbyState interface {
 type Lobby struct {
 	code      string
 	Inbound   chan PlayerMessage
+	readHub   chan HubMessage
 	state     LobbyState
 	gameState *GameState
 	players   map[*websocket.Conn]*Player
 	turnCycle []*websocket.Conn
 	turn      int
 	owner     *Player
+}
+
+func NewLobby(code string, owner *Player) *Lobby {
+	lb := Lobby{
+		code:      code,
+		Inbound:   make(chan PlayerMessage),
+		readHub:   make(chan HubMessage),
+		state:     &LobbyWaitingForPlayers{},
+		gameState: nil,
+		players:   make(map[*websocket.Conn]*Player),
+		turnCycle: make([]*websocket.Conn, 0, 10),
+		turn:      0,
+		owner:     owner,
+	}
+	lb.turnCycle = append(lb.turnCycle, owner.conn)
+	lb.players[owner.conn] = owner
+
+	return &lb
 }
 
 func (l *Lobby) SetState(newState LobbyState) {
@@ -107,12 +128,12 @@ func (l *LobbyWaitingForPlayers) HandleHubMessage(hm HubMessage, channelOpen boo
 	}
 
 	switch hm.msgType {
-	case SendPlayerToLobby:
-		lobby.players[hm.player.conn] = &hm.player
+	case HubSendPlayerToLobby:
+		lobby.players[hm.player.conn] = hm.player
 	}
 }
 
-func (l *LobbyWaitingForPlayers) Exit() {
+func (l *LobbyWaitingForPlayers) Exit(lobby *Lobby) {
 
 }
 

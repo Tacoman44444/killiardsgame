@@ -121,20 +121,21 @@ func newGameFinishedMessage(winnerName string) GameFinishedMessage {
 	return GameFinishedMessage{ServerGameFinished, winnerName}
 }
 
-type ClientMessageType int
+type ClientMessageType string
 
 const (
-	ClientCreateRoom ClientMessageType = 1
-	ClientStartGame  ClientMessageType = 2
-	ClientJoinRoom   ClientMessageType = 3
-	ClientSendWall   ClientMessageType = 4
-	ClientSendTurn   ClientMessageType = 5
+	ClientCreateRoom ClientMessageType = "create-room"
+	ClientStartGame  ClientMessageType = "start-game"
+	ClientJoinRoom   ClientMessageType = "join-room"
+	ClientSendWall   ClientMessageType = "send-wall"
+	ClientSendTurn   ClientMessageType = "send-turn"
+	ClientSendId     ClientMessageType = "send-id"
 )
 
 type ClientMessage struct {
 	Type   ClientMessageType `json:"type"`
-	Name   string            `json:"name"`
-	Code   int               `json:"code"`
+	Id     string            `json:"id"`
+	Code   string            `json:"code"`
 	Wall   WallState         `json:"wall_state"`
 	Action PlayerAction      `json:"player_action"`
 }
