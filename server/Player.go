@@ -14,6 +14,7 @@ const (
 	PlayerSendAction PlayerMessageType = iota
 	PlayerSendWall
 	PlayerStartGame
+	PlayerSimulationDone
 )
 
 type PlayerMessage struct {
@@ -23,13 +24,200 @@ type PlayerMessage struct {
 	msg      ClientMessage
 }
 
+/*
+POSSIBLE PLAYER STATES:
+
+1. PLAYER CONNECTED BUT NOT HAS NOT ENTERED ANY CODE (OR HAS JUST EXITED A LOBBY) -- IN HUB BUT NOT IN LOBBY
+2. PLAYER HAS REQUESTED FOR A LOBBY VIA A CODE
+3. PLAYER HAS BEEN GRANTED THE LOBBY, PLAYER IS NOW IN LOBBY BUT NOT IN GAME
+4. GAME HAS BEEN STARTED BY LOBBY OWNER, PLAYER IS NOW INGAME
+*/
+type PlayerState interface {
+	Enter(player *Player)
+	HandleClientMessage(cm ClientMessage, channelOpen bool, player *Player)
+	HandleLobbyMessage(lm LobbyMessage, channelOpen bool, player *Player)
+	HandleHubMessage(hm HubMessage, channelOpen bool, player *Player)
+	Exit()
+}
+
+type PlayerInHub struct {
+	hub *Hub
+}
+
+func (p *PlayerInHub) Enter(player *Player) {}
+
+func (p *PlayerInHub) HandleClientMessage(cm ClientMessage, channelOpen bool, player *Player) {
+	if !channelOpen {
+		//
+	}
+
+	switch cm.Type {
+	case ClientCreateRoom:
+		// add room creation logic here when hub.go is implemented
+	case ClientJoinRoom:
+		//add room joining logic here when hub.go is implemented
+	}
+}
+
+func (p *PlayerInHub) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, player *Player) {
+	if !channelOpen {
+		//
+	}
+
+	//lobby should not send messages to the player in this state
+}
+
+func (p *PlayerInHub) HandleHubMessage(hm HubMessage, channelOpen bool, player *Player) {
+	if !channelOpen {
+		//
+	}
+
+	//hub does not need to send messages to the player in this state, except maybe a timeout message
+}
+
+func (p *PlayerInHub) Exit() {}
+
+type PlayerRequestedForLobby struct {
+	hub *Hub
+}
+
+func (p *PlayerRequestedForLobby) Enter(player *Player) {}
+
+func (p *PlayerRequestedForLobby) HandleClientMessage(cm ClientMessage, channelOpen bool, player *Player) {
+}
+
+func (p *PlayerRequestedForLobby) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, player *Player) {
+}
+
+func (p *PlayerRequestedForLobby) HandleHubMessage(hm HubMessage, channelOpen bool, player *Player) {
+	if !channelOpen {
+		//
+	}
+
+	switch hm.msgType {
+	case SendPlayerToLobby:
+		player.SetState(&PlayerInLobby{})
+	}
+}
+
+func (p *PlayerRequestedForLobby) Exit() {}
+
+type PlayerInLobby struct {
+	l *Lobby
+}
+
+func (p *PlayerInLobby) Enter(player *Player) {
+	player.lobby = p.l
+}
+
+func (p *PlayerInLobby) HandleClientMessage(cm ClientMessage, channelOpen bool, player *Player) {
+	if !channelOpen {
+		//
+	}
+
+	switch cm.Type {
+	case ClientStartGame:
+		msg := PlayerMessage{
+			msgType:  PlayerStartGame,
+			sender:   player.conn,
+			senderID: player.id,
+			msg:      cm,
+		}
+		player.lobby.Inbound <- msg
+	}
+}
+
+func (p *PlayerInLobby) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, player *Player) {
+	if !channelOpen {
+		//
+	}
+
+	switch lm.msgType {
+	case LobbySendGameStart:
+		msg := newGameStartMessage(lm.mapState, lm.player, lm.allPlayers)
+		player.WriteToClient(msg, player.id)
+		player.SetState(&PlayerInGame{})
+	}
+}
+
+func (p *PlayerInLobby) HandleHubMessage(hm HubMessage, channelOpen bool, player *Player) {}
+
+func (p *PlayerInLobby) Exit() {}
+
 type Player struct {
 	id           string
 	conn         *websocket.Conn
 	socketClosed bool
+	state        PlayerState
 	clientMsg    chan ClientMessage
 	readLobby    chan LobbyMessage //lobby will write into this
 	lobby        *Lobby
+}
+
+type PlayerInGame struct{}
+
+func (p *PlayerInGame) Enter(player *Player) {}
+
+func (p *PlayerInGame) HandleClientMessage(cm ClientMessage, channelOpen bool, player *Player) {
+	if !channelOpen {
+		//the channel that recieves messages from the client has been closed, handle this accordingly
+	}
+
+	switch cm.Type {
+	case ClientCreateRoom:
+		fmt.Println("cannot create room while player is already ingame")
+	case ClientJoinRoom:
+		fmt.Println("cannot join room while player is already ingame")
+	case ClientStartGame:
+		fmt.Println("cannot start game while player is already ingame")
+	case ClientSendTurn:
+		playerMsg := PlayerMessage{
+			msgType: PlayerSendAction,
+			msg:     cm,
+		}
+
+		player.lobby.Inbound <- playerMsg
+	case ClientSendWall:
+		playerMsg := PlayerMessage{
+			msgType: PlayerSendWall,
+			msg:     cm,
+		}
+
+		player.lobby.Inbound <- playerMsg
+	}
+}
+
+func (p *PlayerInGame) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, player *Player) {
+	if !channelOpen {
+		//that channel that recieves messages from the lobby has been closed, handle this
+	}
+
+	switch lm.msgType {
+	case LobbySendEntityUpdate:
+		serverMsg := newEntityUpdateMessage(lm.player, lm.allPlayers, lm.walls)
+		player.WriteToClient(serverMsg, player.id)
+	case LobbySendWallUpdate:
+		serverMsg := newWallUpdateMessage(lm.walls)
+		player.WriteToClient(serverMsg, player.id)
+	case LobbySendMapUpdate:
+		serverMsg := newMapUpdateMessage(lm.mapState)
+		player.WriteToClient(serverMsg, player.id)
+	case LobbySendTurnStart:
+		serverMsg := newTurnStartMessage(lm.player.id)
+		player.WriteToClient(serverMsg, player.id)
+	case LobbySendTurnTimeout:
+		serverMsg := newTurnTimeoutMessage()
+		player.WriteToClient(serverMsg, player.id)
+	}
+}
+
+func (p *PlayerInGame) HandleHubMessage(hm HubMessage, channelOpen bool, player *Player) {}
+
+func (p *PlayerInGame) Exit() {}
+
+func (p *Player) SetState(newState PlayerState) {
+	p.state.Exit()
+	p.state = newState
 }
 
 func GetNewPlayer(id string, conn *websocket.Conn) *Player {
@@ -98,54 +286,13 @@ func (p *Player) WriteToClient(msg ServerMessage, playerID string) error {
 }
 
 func (p *Player) HandleClientMessage(cm ClientMessage, channelOpen bool) {
-	if !channelOpen {
-		//the channel that recieves messages from the client has been closed, handle this accordingly
-	}
-
-	switch cm.Type {
-	case ClientCreateRoom:
-		fmt.Println("cannot create room while player is already ingame")
-	case ClientJoinRoom:
-		fmt.Println("cannot join room while player is already ingame")
-	case ClientStartGame:
-		fmt.Println("cannot start game while player is already ingame")
-	case ClientSendTurn:
-		playerMsg := PlayerMessage{
-			msgType: PlayerSendAction,
-			msg:     cm,
-		}
-
-		p.lobby.Inbound <- playerMsg
-	case ClientSendWall:
-		playerMsg := PlayerMessage{
-			msgType: PlayerSendWall,
-			msg:     cm,
-		}
-
-		p.lobby.Inbound <- playerMsg
-	}
+	p.state.HandleClientMessage(cm, channelOpen, p)
 }
 
 func (p *Player) HandleLobbyMessage(lm LobbyMessage, channelOpen bool) {
-	if !channelOpen {
-		//that channel that recieves messages from the lobby has been closed, handle this
-	}
+	p.state.HandleLobbyMessage(lm, channelOpen, p)
+}
 
-	switch lm.msgType {
-	case LobbySendEntityUpdate:
-		serverMsg := newEntityUpdateMessage(lm.player, lm.allPlayers, lm.walls)
-		p.WriteToClient(serverMsg, p.id)
-	case LobbySendWallUpdate:
-		serverMsg := newWallUpdateMessage(lm.walls)
-		p.WriteToClient(serverMsg, p.id)
-	case LobbySendMapUpdate:
-		serverMsg := newMapUpdateMessage(lm.mapState)
-		p.WriteToClient(serverMsg, p.id)
-	case LobbySendTurnStart:
-		serverMsg := newTurnStartMessage()
-		p.WriteToClient(serverMsg, p.id)
-	case LobbySendTurnTimeout:
-		serverMsg := newTurnTimeoutMessage()
-		p.WriteToClient(serverMsg, p.id)
-	}
+func (p *Player) HandleHubMessage(hm HubMessage, channelOpen bool) {
+	p.state.HandleHubMessage(hm, channelOpen, p)
 }

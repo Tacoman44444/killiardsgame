@@ -45,6 +45,9 @@ type ClientMessage =
     | {
         type: "send-turn";
         player_action: PlayerAction;
+    }
+    | {
+        type: "simulation-done"
     };
 
 type ServerMessage = 

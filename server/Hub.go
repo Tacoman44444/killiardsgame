@@ -10,3 +10,6 @@ type HubMessage struct {
 	msgType HubMessageType
 	player  Player
 }
+
+type Hub struct {
+}

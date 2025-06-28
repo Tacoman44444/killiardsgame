@@ -35,7 +35,7 @@ type LobbyState interface {
 }
 
 type Lobby struct {
-	id        string
+	code      string
 	Inbound   chan PlayerMessage
 	state     LobbyState
 	gameState *GameState
@@ -203,17 +203,67 @@ func (l *LobbyWaitingForTurn) Exit(lobby *Lobby) {
 }
 
 type LobbyBetweenTurns struct {
-	timer  *time.Timer
-	cancel bool
+	timer      *time.Timer //this timer is for when clients dont send "simulation-done" in time
+	cancel     bool
+	simRunning []*websocket.Conn
 }
 
 func (l *LobbyBetweenTurns) Enter(lobby *Lobby) {
 	l.timer = time.NewTimer(time.Duration(CLIENT_AFFIRMATON_TIMEOUT_IN_SECONDS) * time.Second)
+	l.simRunning = lobby.turnCycle
 
+	go func() {
+		<-l.timer.C
+		if l.cancel {
+			return
+		}
+		lobby.SwitchTurn()
+		msg := LobbyMessage{
+			msgType:    LobbySendTurnStart,
+			player:     *lobby.gameState.players[lobby.players[lobby.turnCycle[lobby.turn]].id],
+			allPlayers: nil,
+			walls:      WallStateRefToWallState(lobby.gameState.walls),
+			mapState:   *lobby.gameState.mapState,
+		}
+		for _, value := range lobby.players {
+			value.readLobby <- msg
+		}
+		lobby.SetState(&LobbyWaitingForTurn{})
+
+	}()
 }
 
 func (l *LobbyBetweenTurns) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lobby *Lobby) {
+	if !channelOpen {
+		//handle channel not being open
+	}
 
+	switch pm.msgType {
+	case PlayerSimulationDone:
+		for i := range l.simRunning {
+			if l.simRunning[i] == pm.sender {
+				l.simRunning = append(l.simRunning[:i], l.simRunning[i+1:]...)
+			}
+		}
+		//HANDLE THE CASE FOR WHEN THE PLAYER DISCONNECTS
+	}
+
+	if len(l.simRunning) == 0 {
+		lobby.SwitchTurn()
+		msg := LobbyMessage{
+			msgType:    LobbySendTurnStart,
+			player:     *lobby.gameState.players[lobby.players[lobby.turnCycle[lobby.turn]].id],
+			allPlayers: nil,
+			walls:      WallStateRefToWallState(lobby.gameState.walls),
+			mapState:   *lobby.gameState.mapState,
+		}
+		for _, value := range lobby.players {
+			value.readLobby <- msg
+		}
+
+		lobby.SetState(&LobbyWaitingForTurn{})
+
+	}
 }
 
 func (l *LobbyBetweenTurns) HandleHubMessage(hm HubMessage, channelOpen bool, lobby *Lobby) {
@@ -222,14 +272,4 @@ func (l *LobbyBetweenTurns) HandleHubMessage(hm HubMessage, channelOpen bool, lo
 
 func (l *LobbyBetweenTurns) Exit(lobby *Lobby) {
 	l.cancel = true
-
-	go func() {
-		<-l.timer.C
-		if l.cancel {
-			return
-		}
-		lobby.SwitchTurn()
-		lobby.SetState(&LobbyWaitingForTurn{})
-
-	}()
 }

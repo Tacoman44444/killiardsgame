@@ -44,6 +44,7 @@ func (m GameStartMessage) isServerMessage() {}
 
 type TurnStartMessage struct {
 	Type ServerMessageType `json:"type"`
+	Id   string            `json:"id"`
 }
 
 func (m TurnStartMessage) isServerMessage() {}
@@ -96,8 +97,8 @@ func newGameStartMessage(mapState tools.MapState, player PlayerIdentity, otherPl
 	return GameStartMessage{ServerGameStart, mapState, player, otherPlayers}
 }
 
-func newTurnStartMessage() TurnStartMessage {
-	return TurnStartMessage{ServerTurnStart}
+func newTurnStartMessage(playerID string) TurnStartMessage {
+	return TurnStartMessage{ServerTurnStart, playerID}
 }
 
 func newTurnTimeoutMessage() TurnTimeoutMessage {
