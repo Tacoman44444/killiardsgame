@@ -7,6 +7,7 @@ type ServerMessageType string
 const (
 	ServerRoomCreated  ServerMessageType = "room_created"
 	ServerRoomJoined   ServerMessageType = "room_joined"
+	ServerInvalidCode  ServerMessageType = "invalid-code"
 	ServerGameStart    ServerMessageType = "game_started"
 	ServerTurnStart    ServerMessageType = "turn_started"
 	ServerTurnTimeout  ServerMessageType = "turn_timeout"
@@ -22,7 +23,7 @@ type ServerMessage interface {
 
 type RoomCreatedMessage struct {
 	Type ServerMessageType `json:"type"`
-	Code int               `json:"code"`
+	Code string            `json:"code"`
 }
 
 func (m RoomCreatedMessage) isServerMessage() {}
@@ -32,6 +33,12 @@ type RoomJoinedMessage struct {
 }
 
 func (m RoomJoinedMessage) isServerMessage() {}
+
+type InvalidCodeMessage struct {
+	Type ServerMessageType `json:"type"`
+}
+
+func (m InvalidCodeMessage) isServerMessage() {}
 
 type GameStartMessage struct {
 	Type         ServerMessageType `json:"type"`
@@ -85,12 +92,16 @@ type GameFinishedMessage struct {
 
 // CREATING NEW MESSAGES
 
-func newRoomCreatedMessage(code int) RoomCreatedMessage {
+func newRoomCreatedMessage(code string) RoomCreatedMessage {
 	return RoomCreatedMessage{ServerRoomCreated, code}
 }
 
 func newRoomJoinedMessage() RoomJoinedMessage {
 	return RoomJoinedMessage{ServerRoomJoined}
+}
+
+func newInvalidCodeMessage() InvalidCodeMessage {
+	return InvalidCodeMessage{ServerInvalidCode}
 }
 
 func newGameStartMessage(mapState tools.MapState, player PlayerIdentity, otherPlayers []PlayerIdentity) GameStartMessage {

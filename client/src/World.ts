@@ -1,8 +1,11 @@
 //this world will only be available in playstate.
 //all different gamestates that can have a 'world' will be nested within this world state.
 
-import { Arena } from "./Arena";
+import { Arena, MapGenData } from "./Arena";
+import { Camera } from "./camera";
 import { SpriteComponent } from "./Components";
+import { Puck, Wall } from "./GameObjects";
+
 interface WorldState {
 
     name: string;
@@ -93,7 +96,11 @@ class InactiveState implements WorldState {
 
 export class World {
 
+    player: Puck;
+    opps: Puck[] = [];
     arena: Arena;
+    walls: Wall[] = [];
+    camera: Camera;
     states: {
         activeState: WorldState;
         processingState: WorldState;
@@ -101,8 +108,11 @@ export class World {
     }
     currentState: WorldState;
 
-    constructor() {
-        this.arena = new Arena(new SpriteComponent("floorTile"), new SpriteComponent("abyssTile"));
+    constructor(mapData: MapGenData, player: Puck, opps: Puck[]) {
+        this.player = player;
+        this.opps = opps
+        this.arena = new Arena(new SpriteComponent("floorTile"), new SpriteComponent("abyssTile"), mapData);
+        this.camera = new Camera(player.position, 1600, 1200);
         this.states = {
             activeState: new ActiveState(this),
             processingState: new ProcessingState(this),

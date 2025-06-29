@@ -26,6 +26,7 @@ type HubMessage struct {
 	msgType HubMessageType
 	code    string
 	player  *Player
+	lobby   *Lobby
 }
 
 type Hub struct {
@@ -50,6 +51,7 @@ func (h *Hub) Run() {
 						msgType: HubSendPlayerToLobby,
 						code:    plrmsg.msg.Code,
 						player:  plrmsg.player,
+						lobby:   lobby,
 					}
 					lobby.readHub <- hubmsg
 					plrmsg.player.readHub <- hubmsg
@@ -62,6 +64,7 @@ func (h *Hub) Run() {
 					msgType: HubRoomCreated,
 					code:    newCode,
 					player:  plrmsg.player,
+					lobby:   lobbies[plrmsg.msg.Code],
 				}
 				plrmsg.player.readHub <- hubmsg
 			}

@@ -43,14 +43,13 @@ type PlayerState interface {
 	Exit()
 }
 
-type PlayerInHub struct {
-}
+type PlayerInHub struct{}
 
 func (p *PlayerInHub) Enter(player *Player) {}
 
 func (p *PlayerInHub) HandleClientMessage(cm ClientMessage, channelOpen bool, player *Player) {
 	if !channelOpen {
-		//
+		// the player <- client channel has been closed.
 	}
 
 	switch cm.Type {
@@ -67,6 +66,9 @@ func (p *PlayerInHub) HandleClientMessage(cm ClientMessage, channelOpen bool, pl
 			}
 
 			player.hub.readPlayer <- msg
+			player.SetState(&PlayerRequestedForLobby{})
+		} else {
+			fmt.Println("id field empty")
 		}
 	case ClientJoinRoom:
 		if player.id != "" {
@@ -79,31 +81,20 @@ func (p *PlayerInHub) HandleClientMessage(cm ClientMessage, channelOpen bool, pl
 			}
 
 			player.hub.readPlayer <- msg
+			player.SetState(&PlayerRequestedForLobby{})
+		} else {
+			fmt.Println("id field empty")
 		}
 	}
 }
 
-func (p *PlayerInHub) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, player *Player) {
-	if !channelOpen {
-		//
-	}
+func (p *PlayerInHub) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, player *Player) {}
 
-	//lobby should not send messages to the player in this state
-}
-
-func (p *PlayerInHub) HandleHubMessage(hm HubMessage, channelOpen bool, player *Player) {
-	if !channelOpen {
-		//
-	}
-
-	//hub does not need to send messages to the player in this state, except maybe a timeout message
-}
+func (p *PlayerInHub) HandleHubMessage(hm HubMessage, channelOpen bool, player *Player) {}
 
 func (p *PlayerInHub) Exit() {}
 
-type PlayerRequestedForLobby struct {
-	hub *Hub
-}
+type PlayerRequestedForLobby struct{}
 
 func (p *PlayerRequestedForLobby) Enter(player *Player) {}
 
@@ -120,7 +111,14 @@ func (p *PlayerRequestedForLobby) HandleHubMessage(hm HubMessage, channelOpen bo
 
 	switch hm.msgType {
 	case HubSendPlayerToLobby:
-		player.SetState(&PlayerInLobby{})
+		player.WriteToClient(newRoomJoinedMessage(), player.id)
+		player.SetState(&PlayerInLobby{l: hm.lobby})
+	case HubRoomCreated:
+		player.WriteToClient(newRoomCreatedMessage(hm.code), player.id)
+		player.SetState(&PlayerInLobby{l: hm.lobby})
+	case HubPlayerInvalidCode:
+		player.WriteToClient(newInvalidCodeMessage(), player.id)
+		player.SetState(&PlayerInHub{})
 	}
 }
 
@@ -270,6 +268,8 @@ func (p *Player) Run() {
 			p.HandleClientMessage(cm, ok)
 		case rm, ok := <-p.readLobby:
 			p.HandleLobbyMessage(rm, ok)
+		case hm, ok := <-p.readHub:
+			p.HandleHubMessage(hm, ok)
 		}
 	}
 }

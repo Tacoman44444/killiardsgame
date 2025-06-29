@@ -3,7 +3,8 @@
 // a list containing binary --> 0: walkable   1. abyss
 //
 
-import { SpriteComponent } from "./Components";
+import { Camera } from "./camera";
+import { PositionComponent, SpriteComponent } from "./Components";
 
 export type MapGenData = {
     arena: number[][],
@@ -14,20 +15,43 @@ export type MapGenData = {
 const pixelSize = 16;
 
 export class Arena {
+
     mapData: MapGenData;
     walkableSprite: SpriteComponent;
     abyssSprite: SpriteComponent;
 
-    constructor(walkableSprite: SpriteComponent, abyssSprite: SpriteComponent) {
+    constructor(walkableSprite: SpriteComponent, abyssSprite: SpriteComponent, mapData: MapGenData) {
         console.log("running map constructor");
-        this.mapData = placeholderArenaGenerator();
+        this.mapData = mapData;
         this.walkableSprite = walkableSprite;
         this.abyssSprite = abyssSprite;
     }
 
-    render(centerX: number, centerY: number, ctx: CanvasRenderingContext2D) {
+    render(ctx: CanvasRenderingContext2D, camera: Camera) {
+
+        let frameXright = camera.follow.x + (camera.width / 2) + (pixelSize / 2);
+        let frameXleft = camera.follow.x - (camera.width / 2) - (pixelSize / 2);
+        let frameYup = camera.follow.y - (camera.height / 2) + (pixelSize / 2);
+        let frameYdown = camera.follow.y + (camera.height / 2) - (pixelSize / 2);
+
         for (let row = 0; row < this.mapData.height; row++) {
             for (let column = 0; column < this.mapData.width; column++) {
+
+                //if tile in camera, then render it.
+
+                let tileCenterX = (column + 0.5) * pixelSize;
+                let tileCenterY = (row + 0.5) * pixelSize;
+                if (isInFrame(tileCenterX, tileCenterY, frameXright, frameXleft, frameYdown, frameYup)) {
+                    let x = (column * pixelSize) - (camera.follow.x - (camera.width / 2));
+                    let y = (row * pixelSize) - (camera.follow.y - (camera.height / 2));
+                    if (this.mapData.arena[row][column] == 0) {
+                    ctx.drawImage(this.walkableSprite.img, this.walkableSprite.sprite.xOffset, this.walkableSprite.sprite.yOffset, this.walkableSprite.sprite.width, this.walkableSprite.sprite.height, x, y, pixelSize, pixelSize)
+                    } else if (this.mapData.arena[row][column] == 1) {
+                        ctx.drawImage(this.abyssSprite.img, this.abyssSprite.sprite.xOffset, this.abyssSprite.sprite.yOffset, this.abyssSprite.sprite.width, this.walkableSprite.sprite.height, x, y, pixelSize, pixelSize)
+                    }
+                }
+
+                /*
                 let x = centerX - (((this.mapData.height / 2) - row) * pixelSize);
                 let y = centerY - (((this.mapData.width / 2) - column) * pixelSize);
                 if (this.mapData.arena[row][column] == 0) {
@@ -35,10 +59,16 @@ export class Arena {
                 } else if (this.mapData.arena[row][column] == 1) {
                     ctx.drawImage(this.abyssSprite.img, this.abyssSprite.sprite.xOffset, this.abyssSprite.sprite.yOffset, this.abyssSprite.sprite.width, this.walkableSprite.sprite.height, x, y, pixelSize, pixelSize)
                 }
+                */
+                
             }
         }
     }
 
+}
+
+function isInFrame(pointX: number, pointY: number, right: number, left: number, down: number, up: number) {
+    return pointX > left && pointX < right && pointY > down && pointY < up;
 }
 
 function placeholderArenaGenerator() : MapGenData {

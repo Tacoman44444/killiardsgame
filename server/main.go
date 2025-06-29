@@ -1,16 +1,16 @@
 package main
 
 import (
-	"github.com/Tacoman44444/killiardsgame/server/tools"
+	"fmt"
+	"net/http"
 )
 
 func main() {
-	/*
-		http.HandleFunc("/ws", wsHandler)
-		log.Println("Listening on :8080")
-		log.Fatal(http.ListenAndServe(":8080", nil))
-	*/
+	fmt.Println("here we fucking go")
+	hub := NewHub()
+	go hub.Run()
 
-	arena := tools.GenerateMap(100, 100, false, "")
-	arena.DebugLog()
+	http.HandleFunc("/ws", hub.ServeWs)
+
+	http.ListenAndServe("localhost:8000", nil)
 }

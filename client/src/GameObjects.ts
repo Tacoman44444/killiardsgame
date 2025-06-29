@@ -11,7 +11,7 @@ interface GameObject {
     render(ctx : CanvasRenderingContext2D) : void;
 }
 
-class Puck implements GameObject {
+export class Puck implements GameObject {
     
     name: string;
     puckSprite: SpriteComponent;
@@ -63,7 +63,7 @@ class Brick implements GameObject {
     }
 }
 
-class Wall implements GameObject {
+export class Wall implements GameObject {
 
     name: string;
     wallSprite: SpriteComponent;
