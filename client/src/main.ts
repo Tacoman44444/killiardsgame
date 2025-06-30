@@ -11,8 +11,8 @@ async function main() {
     console.log("works");
     const temp = new SpriteComponent("floorTile");
     const black = new SpriteComponent("abyssTile");
-    const arena = new Arena(temp, black);
-    arena.render(400, 300, ctx);
+    //const arena = new Arena(temp, black);
+    //arena.render(400, 300, ctx);
   }
 
 main().catch(err => {

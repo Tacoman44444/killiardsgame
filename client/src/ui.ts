@@ -16,6 +16,10 @@ export class Board {
         this.textBoxes.push(box);
     }
 
+    processInput(input: any) {
+        
+    }
+
     render(ctx: CanvasRenderingContext2D) : void {
         this.buttons.forEach((btn) => btn.render(ctx));
         this.textBoxes.forEach((box) => box.render(ctx));

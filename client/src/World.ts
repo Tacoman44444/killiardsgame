@@ -5,12 +5,17 @@ import { Arena, MapGenData } from "./Arena";
 import { Camera } from "./camera";
 import { SpriteComponent } from "./Components";
 import { Puck, Wall } from "./GameObjects";
+import { Circle, physicsResolver, ShotData, Vector2 } from "./physics";
+import { PlayerAction, ServerMessage } from "./socket-manager";
+import { SocketEventManager } from "./socketevent-manager";
+
+const radius = 16;
 
 interface WorldState {
 
     name: string;
     world: World;
-    processInput() : void;
+    processInput(input: any) : void;
     update() : void;
     render(ctx: CanvasRenderingContext2D) : void;
     Enter() : void;
@@ -25,8 +30,9 @@ class ActiveState implements WorldState {
         this.world = world;
     }
 
-    processInput() {
-
+    processInput(input: any) {
+        //here, we will have to process the input shot and wall placements
+        
     }
 
     update() {
@@ -34,12 +40,39 @@ class ActiveState implements WorldState {
     }
 
     render(ctx: CanvasRenderingContext2D) {
+        this.world.arena.render(ctx, this.world.camera);
 
+        this.world.walls.forEach((wall) => wall.render(ctx, this.world.camera))
+
+        this.world.opps.forEach((opp) => opp.render(ctx, this.world.camera))
+
+        this.world.player.render(ctx, this.world.camera)
     }
 
     Enter() {
-
+        this.world.camera.SwitchFollow(this.world.player.position);
     }
+
+    sendMove(action: PlayerAction) {
+        //tell socket manager to send move
+        this.world.socketEventBus.emit("send-turn", action)
+        this.world.SetState("processing-state")
+
+        //call physics resolver
+    }
+
+    onTurnTimeout(msg: ServerMessage) {
+        this.world.SetState("processing-state")
+    }
+
+    onWallUpdate(msg: ServerMessage) {
+        this.world.walls = [];
+        if (msg.type == "wall-update") {
+            msg.walls.forEach((wallState) => this.world.walls.push(new Wall(wallState.position_x, wallState.position_y)))
+        }
+    }
+
+    
 }
 
 class ProcessingState implements WorldState {
@@ -51,7 +84,8 @@ class ProcessingState implements WorldState {
         this.world = world;
     }
 
-    processInput() {
+    processInput(input: any) {
+        //here, there is nothing to process for now
 
     }
 
@@ -66,30 +100,23 @@ class ProcessingState implements WorldState {
     Enter() {
 
     }
-}
 
-class InactiveState implements WorldState {
-
-    name: string;
-    world: World;
-    constructor(world: World) {
-        this.name = "inactive-state";
-        this.world = world;
+    onEntityUpdate(msg: ServerMessage) {
+        //check with your own physics simulation.
     }
 
-    processInput() {
-
+    onTurnStart(msg: ServerMessage) {
+        this.world.SetState("active-state")
     }
 
-    update() {
-
+    onWallUpdate(msg: ServerMessage) {
+        this.world.walls = [];
+        if (msg.type == "wall-update") {
+            msg.walls.forEach((wallState) => this.world.walls.push(new Wall(wallState.position_x, wallState.position_y)))
+        }
     }
 
-    render(ctx: CanvasRenderingContext2D) {
-
-    }
-
-    Enter() {
+    onMapUpdate(msg: ServerMessage) {
 
     }
 }
@@ -104,11 +131,10 @@ export class World {
     states: {
         activeState: WorldState;
         processingState: WorldState;
-        inactiveState: WorldState;
     }
     currentState: WorldState;
-
-    constructor(mapData: MapGenData, player: Puck, opps: Puck[]) {
+    socketEventBus: SocketEventManager
+    constructor(mapData: MapGenData, player: Puck, opps: Puck[], socketEventBus: SocketEventManager) {
         this.player = player;
         this.opps = opps
         this.arena = new Arena(new SpriteComponent("floorTile"), new SpriteComponent("abyssTile"), mapData);
@@ -116,13 +142,29 @@ export class World {
         this.states = {
             activeState: new ActiveState(this),
             processingState: new ProcessingState(this),
-            inactiveState: new InactiveState(this),
         }
-        this.currentState = this.states.inactiveState;
+        this.currentState = this.states.processingState;
+        this.socketEventBus = socketEventBus;
     }
 
-    processInput() {
-        this.currentState.processInput();
+    SetState(state: string) {
+        switch (state) {
+            case "active-state":
+                this.currentState = this.states.activeState;
+                this.currentState.Enter();
+                break;
+            case "processing-state":
+                this.currentState = this.states.processingState;
+                this.currentState.Enter();
+                break;
+            default:
+                console.log("invalid state");
+                break;
+        }
+    }
+
+    processInput(input: any) {
+        this.currentState.processInput(input);
     }
 
     update() {

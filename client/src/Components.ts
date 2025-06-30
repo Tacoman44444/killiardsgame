@@ -1,4 +1,5 @@
 import {images} from "./AssetLoader.js"
+import { Vector2 } from "./physics.js";
 
 export interface SpriteDef {
     src: string;
@@ -29,11 +30,9 @@ export class SpriteComponent {
 }
 
 export class PositionComponent {
-    x: number;
-    y: number;
+    pos: Vector2;
     constructor(x: number, y: number) {
-        this.x = x;
-        this.y = y;
+        this.pos = new Vector2(x, y)
     }
 }
 

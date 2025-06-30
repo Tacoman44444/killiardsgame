@@ -1,6 +1,8 @@
 //all gameobject implementations
 
+import { Camera } from "./camera";
 import { PositionComponent, SpriteComponent, VelocityComponent } from "./Components";
+import { Circle, Vector2 } from "./physics";
 
 interface GameObject {
 
@@ -8,7 +10,7 @@ interface GameObject {
 
     processInput() : void;
     update() : void;
-    render(ctx : CanvasRenderingContext2D) : void;
+    render(ctx : CanvasRenderingContext2D, camera: Camera) : void;
 }
 
 export class Puck implements GameObject {
@@ -33,7 +35,7 @@ export class Puck implements GameObject {
 
     }
 
-    render(ctx: CanvasRenderingContext2D) {
+    render(ctx: CanvasRenderingContext2D, camera: Camera) {
 
     }
 }
@@ -58,7 +60,7 @@ class Brick implements GameObject {
 
     }
 
-    render(ctx: CanvasRenderingContext2D) {
+    render(ctx: CanvasRenderingContext2D, camera: Camera) {
 
     }
 }
@@ -83,7 +85,7 @@ export class Wall implements GameObject {
 
     }
 
-    render(ctx: CanvasRenderingContext2D) {
-
+    render(ctx: CanvasRenderingContext2D, camera: Camera) {
+        
     }
 }
