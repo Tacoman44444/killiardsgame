@@ -50,16 +50,6 @@ export class Arena {
                         ctx.drawImage(this.abyssSprite.img, this.abyssSprite.sprite.xOffset, this.abyssSprite.sprite.yOffset, this.abyssSprite.sprite.width, this.walkableSprite.sprite.height, x, y, pixelSize, pixelSize)
                     }
                 }
-
-                /*
-                let x = centerX - (((this.mapData.height / 2) - row) * pixelSize);
-                let y = centerY - (((this.mapData.width / 2) - column) * pixelSize);
-                if (this.mapData.arena[row][column] == 0) {
-                    ctx.drawImage(this.walkableSprite.img, this.walkableSprite.sprite.xOffset, this.walkableSprite.sprite.yOffset, this.walkableSprite.sprite.width, this.walkableSprite.sprite.height, x, y, pixelSize, pixelSize)
-                } else if (this.mapData.arena[row][column] == 1) {
-                    ctx.drawImage(this.abyssSprite.img, this.abyssSprite.sprite.xOffset, this.abyssSprite.sprite.yOffset, this.abyssSprite.sprite.width, this.walkableSprite.sprite.height, x, y, pixelSize, pixelSize)
-                }
-                */
                 
             }
         }
@@ -68,7 +58,7 @@ export class Arena {
 }
 
 function isInFrame(pointX: number, pointY: number, right: number, left: number, down: number, up: number) {
-    return pointX > left && pointX < right && pointY > down && pointY < up;
+    return pointX > left && pointX < right && pointY < down && pointY > up;
 }
 
 function placeholderArenaGenerator() : MapGenData {

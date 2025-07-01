@@ -15,6 +15,7 @@ const SPRITE_MAP: Record <string, SpriteDef> = {
     wallTile  : { src: "block_sheet", xOffset: 0, yOffset: 0, width: 16, height: 16 },
     brickTile : { src: "block_sheet", xOffset: 288, yOffset: 0, width: 16, height: 16 },
     puck      : { src: "puck", xOffset: 0, yOffset: 0, width: 128, height: 128 },
+    createroom_button: { src: "createroom_button", xOffset: 0, yOffset: 0, width: 68, height: 16 },
 }
 
 export class SpriteComponent {

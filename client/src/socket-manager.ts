@@ -4,6 +4,7 @@ import { MapGenData } from "./Arena";
 import { SocketEventManager } from "./socketevent-manager";
 
 export type PlayerIdentity = {
+    id:         string;
     position_x: number;
     position_y: number;
     velocity_x: number;
@@ -33,14 +34,13 @@ export type JoinRoomData = {
 type ClientMessage = 
     | {
         type: "create-room";
-        id: string
     }
     | {
         type: "start-game";
     }
     | {
         type: "join-room";
-        data: JoinRoomData;
+        code: string;
     }
     | {
         type: "send-wall";
@@ -49,7 +49,7 @@ type ClientMessage =
     | {
         type: "send-turn";
         player_action: PlayerAction;
-    }
+    } 
     | {
         type: "simulation-done"
     };
@@ -57,10 +57,14 @@ type ClientMessage =
 export type ServerMessage = 
     | {
         type: "room-created";
-        code: number;
+        code: string;
     }
     | {
-        type: "room-joined"
+        type: "room-joined";
+        code: string;
+    }
+    | {
+        type: "invalid-code";
     }
     | {
         type: "game-start";
@@ -75,6 +79,11 @@ export type ServerMessage =
         type: "turn-timeout";
     }
     | {
+        type: "broadcast-turn";
+        player: PlayerIdentity;
+        action: PlayerAction;
+    }
+    | {
         type: "entity-update";
         player: PlayerIdentity;
         other_players: PlayerIdentity[];
@@ -85,14 +94,8 @@ export type ServerMessage =
         walls: WallState[];
     }
     | {
-        type: "map-update";
+        type: "map-update"; 
         map: MapState;
-    }
-    | {
-        type: "initialize-game";
-        map: MapState;
-        player: PlayerIdentity;
-        other_players: PlayerIdentity[];
     }
     | {
         type: "game-finished";
@@ -114,10 +117,9 @@ class SocketManager {
         this.socket.send(JSON.stringify(msg));
     }
 
-    sendCreateRoomRequest(player_name: string) {
+    sendCreateRoomRequest() {
         const msg: ClientMessage = {
             type: "create-room",
-            id: player_name
         };
         this.send(msg);
     }
@@ -129,10 +131,10 @@ class SocketManager {
         this.send(msg);
     }
 
-    sendJoinRoomRequest(data: JoinRoomData) {
+    sendJoinRoomRequest(code: string) {
         const msg: ClientMessage = {
             type: "join-room",
-            data: data,
+            code: code,
         };
         this.send(msg);
     }

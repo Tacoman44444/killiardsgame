@@ -16,6 +16,7 @@ const (
 	LobbySendMapUpdate
 	LobbySendTurnStart
 	LobbySendTurnTimeout
+	LobbyBroadcastMove
 	LobbySendGameStart
 	LobbyClose // :<
 )
@@ -184,6 +185,18 @@ func (l *LobbyWaitingForTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen 
 		fmt.Println("game already in progress")
 	case PlayerSendAction:
 		if pm.sender == lobby.turnCycle[lobby.turn] {
+			for _, value := range lobby.players {
+				if pm.player.id != value.id {
+					msg := LobbyMessage{
+						msgType:    LobbyBroadcastMove,
+						player:     *lobby.gameState.players[value.id],
+						allPlayers: PlayerMapToSlice(lobby.gameState.players),
+						walls:      WallStateRefToWallState(lobby.gameState.walls),
+						mapState:   *lobby.gameState.mapState,
+					}
+					value.readLobby <- msg
+				}
+			}
 			tools.PhysicsResolver(lobby.gameState.players[pm.senderID].circle, PlayerMapToCircles(lobby.gameState.players), GetWallRectRefs(lobby.gameState.walls), pm.msg.Action.data)
 			for _, value := range lobby.players { //sending the message to all players
 				msg := LobbyMessage{
@@ -195,6 +208,7 @@ func (l *LobbyWaitingForTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen 
 				}
 				value.readLobby <- msg
 			}
+
 			lobby.SetState(&LobbyBetweenTurns{})
 		}
 	case PlayerSendWall:

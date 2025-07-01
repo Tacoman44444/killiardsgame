@@ -1,3 +1,4 @@
+import { SpriteComponent } from "./Components"
 import { Puck } from "./GameObjects"
 import { JoinRoomData, ServerMessage } from "./socket-manager"
 import { SocketEventManager } from "./socketevent-manager"
@@ -8,122 +9,140 @@ import { World } from "./World"
 interface GameState {
     name:       string
     board:      Board
-    socketEventBus: SocketEventManager
+    game: Game
+    initializeBoard() : void;
     processInput(input: any) : void;
-    update() : void;
     render(ctx: CanvasRenderingContext2D) : void;
-    Enter() : void;
+}
+
+export enum MouseButton {
+    LEFT_CLICK,
+    MIDDLE_CLICK,
+    RIGHT_CLICK,
 }
 
 export type GameInput = 
     | { type: "keydown", event: KeyboardEvent }
     | { type: "keyup", event: KeyboardEvent }
-    | { type: "mousedown", event: MouseEvent }
-    | { type: "mouseup", event: MouseEvent }
-    | { type: "mousemove", event: MouseEvent };
+    | { type: "mousedown", event: MouseEvent, buttonType: MouseButton, cameraX: number, cameraY: number }
+    | { type: "mouseup", event: MouseEvent, buttonType: MouseButton, cameraX: number, cameraY: number }
+    | { type: "mousemove", event: MouseEvent, cameraX: number, cameraY: number }
+
 
 class MainMenuState implements GameState {
     name:   string;
     board:  Board;
-    socketEventBus: SocketEventManager
+    game: Game;
 
-    constructor(socketEventBus: SocketEventManager) {
+    constructor(game: Game) {
         this.name = "main-menu";
         this.board = new Board();
-        this.socketEventBus = socketEventBus;
+        this.game = game;
+    }
+
+    initializeBoard() {
+        this.board.addInputTextBox("username", 600, 525, 400, 150, 10);
+        this.board.addInputTextBox("code", 700, 200, 200, 75, 6);
+        this.board.addButton("create", 20, 20, 68, 16, new SpriteComponent("createroom_button"), () => this.sendCreateRoomRequest(), true);
+        this.board.addButton("join", 20, 700, 65, 16, new SpriteComponent("createroom_button"), () => this.sendJoinRequest(), true)
     }
 
     processInput(input: any) {
         this.board.processInput(input)
     }
 
-    update() {
-
-    }
-
     render(ctx: CanvasRenderingContext2D) {
         this.board.render(ctx)
     }
 
-    Enter() {}
-
     //handle socket event and send messages now ... 
 
-    sendJoinRequest(id: string, code: string) {
-        const data: JoinRoomData = { id: id, code: code }
-        this.socketEventBus.emit("join-room", data)
+    sendJoinRequest() {
+        let code = "";
+        this.board.textBoxes.forEach((box) => {
+            if (box.name === "code") {
+                code = box.text;
+            }
+        });
+        this.game.socketEventBus.emit("join-room", code);
+        this.game.currentState = this.game.states.requestedForLobby;
+        this.game.states.requestedForLobby;
     }
 
-    sendCreateRoomRequest(id: string) {
-        this.socketEventBus.emit("create-room", id)
+    sendCreateRoomRequest() {
+        this.game.socketEventBus.emit("create-room")
+        this.game.currentState = this.game.states.requestedForLobby;
     }
 }
 
 class RequestedForLobby implements GameState {
     name:   string;
     board:  Board;
-    socketEventBus: SocketEventManager
+    game: Game;
+    code: string;   //rage coding, probably shouldnt do it this way
 
-    constructor(socketEventBus: SocketEventManager) {
+    constructor(game: Game) {
         this.name = "requested-for-lobby";
         this.board = new Board();
-        this.socketEventBus = socketEventBus;
+        this.game = game;
+        this.code = "";
+    }
+
+    initializeBoard() {
+
     }
 
     processInput(input: any) {
         this.board.processInput(input)
     }
 
-    update() {
-
-    }
-
     render(ctx: CanvasRenderingContext2D) {
         this.board.render(ctx)
     }
 
-    Enter() {}
-
     //socket msges and send
 
     onInvalidCode(msg: ServerMessage) {
-        //switch to MainMenuState
+        this.game.currentState = this.game.states.mainMenuState;
     }
 
     onRoomCreated(msg: ServerMessage) {
-        //switch to InLobbyState
+        this.game.currentState = this.game.states.inLobby;
+        if (msg.type == "room-created") {
+            this.game.code = msg.code;
+        }
     }
 
     onRoomJoined(msg: ServerMessage) {
-        //switch to InLobbyState
+        this.game.currentState = this.game.states.inLobby;
+        if (msg.type == "room-joined") {
+            this.game.code = msg.code;
+        }
     }
-
 }
 
 class InLobby implements GameState {
     name:   string;
     board:  Board;
-    socketEventBus: SocketEventManager
+    game: Game;
 
-    constructor(socketEventBus: SocketEventManager) {
+    constructor(game: Game) {
         this.name = "in-lobby";
         this.board = new Board();
-        this.socketEventBus = socketEventBus;
+        this.game = game;
+    }
+
+    initializeBoard() {
+        this.board.addDisplayTextBox("code", 20, 20, 100, 50, this.game.code)
     }
 
     processInput(input: any) {
         this.board.processInput(input)
     }
 
-    update() {
-
-    }
-
     render(ctx: CanvasRenderingContext2D) {
         this.board.render(ctx)
     }
-
-    Enter() {}
 
     //socket n send
 
@@ -132,7 +151,7 @@ class InLobby implements GameState {
     }
 
     sendGameStart() {
-        this.socketEventBus.emit("start-game")
+        this.game.socketEventBus.emit("start-game")
     }
 }
 
@@ -140,13 +159,17 @@ class InGame implements GameState {
     name:   string;
     board:  Board;
     world: World | null;
-    socketEventBus: SocketEventManager
+    game: Game;
 
-    constructor(socketEventBus: SocketEventManager) {
+    constructor(game: Game) {
         this.name = "in-lobby";
         this.board = new Board();
         this.world = null;
-        this.socketEventBus = socketEventBus;
+        this.game = game;
+    }
+
+    initializeBoard() {
+
     }
 
     processInput(input: any) {
@@ -154,22 +177,16 @@ class InGame implements GameState {
         this.world?.processInput(input)
     }
 
-    update() {
-
-    }
-
     render(ctx: CanvasRenderingContext2D) {
         this.board.render(ctx)
     }
 
-    Enter() {}
-
     initializeMap(msg: ServerMessage) {
-        if (msg.type == "initialize-game") {
-            let player = new Puck(msg.player.position_x, msg.player.position_y)
+        if (msg.type == "game-start") {
+            let player = new Puck(msg.player.id, msg.player.position_x, msg.player.position_y)
             let opps: Puck[] = []
-            msg.other_players.forEach((opp) => opps.push(new Puck(opp.position_x, opp.position_y)))
-            this.world = new World(msg.map.map, player, opps, this.socketEventBus)
+            msg.other_players.forEach((opp) => opps.push(new Puck(opp.id, opp.position_x, opp.position_y)))
+            this.world = new World(msg.map.map, player, opps, this.game.socketEventBus)
         }
     }
 
@@ -185,6 +202,7 @@ class Game {
     ctx: CanvasRenderingContext2D;
     currentState: GameState;
     socketEventBus: SocketEventManager;
+    code: string;
     states: {
         mainMenuState: GameState;
         requestedForLobby: GameState;
@@ -197,17 +215,17 @@ class Game {
         this.ctx = this.canvas.getContext('2d')!;
         this.socketEventBus = socketEventBus;
         this.states = {
-            mainMenuState: new MainMenuState(socketEventBus),
-            requestedForLobby: new RequestedForLobby(socketEventBus),
-            inLobby: new InLobby(socketEventBus),
-            inGame: new InGame(socketEventBus),
+            mainMenuState: new MainMenuState(this),
+            requestedForLobby: new RequestedForLobby(this),
+            inLobby: new InLobby(this),
+            inGame: new InGame(this),
         }
         this.currentState = this.states.mainMenuState;
+        this.code = "";
     }
 
     Play() {
     const loop = () => {
-        this.currentState.update();
         this.currentState.render(this.ctx);
         requestAnimationFrame(loop);
         }
@@ -224,16 +242,46 @@ class Game {
     });
 
     this.canvas.addEventListener("mousedown", (e) => {
-        this.currentState.processInput({ type: "mousedown", event: e });
+        const rect = this.canvas.getBoundingClientRect();
+        const mousePos = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+        const button = getMouseButton(e.button);
+        this.currentState.processInput({ type: "mousedown", event: e, buttonType: button, cameraX: mousePos.x, cameraY: mousePos.y });
     });
 
     this.canvas.addEventListener("mouseup", (e) => {
-        this.currentState.processInput({ type: "mouseup", event: e });
+        const rect = this.canvas.getBoundingClientRect();
+        const mousePos = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+        const button = getMouseButton(e.button);
+        this.currentState.processInput({ type: "mouseup", event: e, buttonType: button, cameraX: mousePos.x, cameraY: mousePos.y });
     });
 
     this.canvas.addEventListener("mousemove", (e) => {
-        this.currentState.processInput({ type: "mousemove", event: e });
+        const rect = this.canvas.getBoundingClientRect();
+        const mousePos = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+        this.currentState.processInput({ type: "mousemove", event: e, cameraX: mousePos.x, cameraY: mousePos.y });
+    });
+
+    this.canvas.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
     });
 }
 
+}
+
+function getMouseButton(button: number): MouseButton | null {
+    switch (button) {
+        case 0: return MouseButton.LEFT_CLICK;
+        case 1: return MouseButton.MIDDLE_CLICK;
+        case 2: return MouseButton.RIGHT_CLICK;
+        default: return null;
+    }
 }

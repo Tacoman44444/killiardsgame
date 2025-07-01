@@ -1,23 +1,31 @@
 import { SpriteComponent } from "./Components";
+import { GameInput } from "./game-states";
 
 
 export class Board {
 
     buttons: Button[] = [];
-    textBoxes: TextBox[] = [];
+    textBoxes: InputTextBox[] = [];
+    displayBoxes: DisplayTextBox[] = []
 
     addButton(name: string, x: number, y: number, width: number, height: number, sprite: SpriteComponent, onClick: () => void, visible: boolean) {
         const btn = new Button(name, x, y, width, height, sprite, onClick, visible)
         this.buttons.push(btn)
     }
 
-    addTextBox(name: string, x: number, y: number, width: number, height: number, maxLength: number) {
-        const box = new TextBox(name, x, y, width, height, maxLength);
+    addDisplayTextBox(name: string, x: number, y: number, width: number, height: number, text: string) {
+        const box = new DisplayTextBox(name, x, y, width, height, text);
+        this.displayBoxes.push(box)
+    }
+
+    addInputTextBox(name: string, x: number, y: number, width: number, height: number, maxLength: number) {
+        const box = new InputTextBox(name, x, y, width, height, maxLength);
         this.textBoxes.push(box);
     }
 
     processInput(input: any) {
-        
+        this.buttons.forEach((btn) => btn.processInput(input));
+        this.textBoxes.forEach((box) => box.processInput(input));
     }
 
     render(ctx: CanvasRenderingContext2D) : void {
@@ -26,6 +34,8 @@ export class Board {
     }
 
 }
+
+type uiElement = Button | InputTextBox;
 
 class Button {
     name:   string;
@@ -48,12 +58,81 @@ class Button {
         this.visible = true;
     }
 
+    processInput(input: GameInput) {
+        if (input.type == "mouseup") {
+            if (contains(this, input.cameraX, input.cameraY)) {
+                this.onClick();
+            }
+        }
+    }
+
     render(ctx: CanvasRenderingContext2D) {
         ctx.drawImage(this.sprite.img, this.sprite.sprite.xOffset, this.sprite.sprite.yOffset, this.sprite.sprite.width, this.sprite.sprite.height, this.x, this.y, this.width, this.height)
     }
 };
 
-class TextBox {
+class DisplayTextBox {
+    name: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    text: string;
+
+    constructor(name: string, x: number, y: number, width: number, height: number, text: string) {
+        this.name = name;
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.text = text;
+    }
+
+    UpdateText(newText: string) {
+        this.text = newText;
+    }
+
+    render(ctx: CanvasRenderingContext2D) {
+    // Optional: Draw the background box
+    ctx.fillStyle = "#ffffff"; // background color
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+
+    // Optional: Draw a border
+    ctx.strokeStyle = "#000000"; // border color
+    ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+    // Set up text styling
+    ctx.fillStyle = "#000000"; // text color
+    ctx.font = "16px Arial";   // font
+    ctx.textBaseline = "top";
+
+    // Word-wrap logic
+    const padding = 4;
+    const maxWidth = this.width - 2 * padding;
+    const words = this.text.split(" ");
+    let line = "";
+    let lineHeight = 20;
+    let y = this.y + padding;
+
+    for (let i = 0; i < words.length; i++) {
+        const testLine = line + words[i] + " ";
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+
+        if (testWidth > maxWidth && line !== "") {
+            ctx.fillText(line, this.x + padding, y);
+            line = words[i] + " ";
+            y += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+
+    ctx.fillText(line, this.x + padding, y); // draw last line
+}
+}
+
+class InputTextBox {
     name:    string;
     x:       number;
     y:       number;
@@ -72,6 +151,22 @@ class TextBox {
         this.text = "";
         this.focused = false;
         this.maxLength = maxLength;
+    }
+
+    processInput(input: any) {
+        if (input.type == "mouseup") {
+            if (contains(this, input.cameraX, input.cameraY)) {
+                this.focused = true;
+            } else {
+                this.focused = false;
+            }
+        } else if (input.type == "keydown") {
+            if (this.focused) {
+                if (isAlphanumeric(input.event.key) && this.text.length < this.maxLength) {
+                    this.text += input.event.key;
+                }
+            }
+        }
     }
 
     render(ctx: CanvasRenderingContext2D) {
@@ -99,3 +194,11 @@ class TextBox {
         }
     }
 };
+
+function contains(ui: uiElement, inputX: number, inputY: number): boolean {
+    return inputX > ui.x && inputX < ui.x + ui.width && inputY > ui.y - ui.height && inputY < ui.y
+}
+
+function isAlphanumeric(key: string): boolean {
+    return /^[a-zA-Z0-9]$/.test(key);
+}

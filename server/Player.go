@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -53,38 +55,28 @@ func (p *PlayerInHub) HandleClientMessage(cm ClientMessage, channelOpen bool, pl
 	}
 
 	switch cm.Type {
-	case ClientSendId:
-		player.id = cm.Id
 	case ClientCreateRoom:
-		if player.id != "" {
-			msg := PlayerMessage{
-				msgType:  PlayerCreateRoom,
-				player:   player,
-				sender:   player.conn,
-				senderID: player.id,
-				msg:      cm,
-			}
-
-			player.hub.readPlayer <- msg
-			player.SetState(&PlayerRequestedForLobby{})
-		} else {
-			fmt.Println("id field empty")
+		msg := PlayerMessage{
+			msgType:  PlayerCreateRoom,
+			player:   player,
+			sender:   player.conn,
+			senderID: player.id,
+			msg:      cm,
 		}
+
+		player.hub.readPlayer <- msg
+		player.SetState(&PlayerRequestedForLobby{})
 	case ClientJoinRoom:
-		if player.id != "" {
-			msg := PlayerMessage{
-				msgType:  PlayerJoinRoom,
-				player:   player,
-				sender:   player.conn,
-				senderID: player.id,
-				msg:      cm,
-			}
-
-			player.hub.readPlayer <- msg
-			player.SetState(&PlayerRequestedForLobby{})
-		} else {
-			fmt.Println("id field empty")
+		msg := PlayerMessage{
+			msgType:  PlayerJoinRoom,
+			player:   player,
+			sender:   player.conn,
+			senderID: player.id,
+			msg:      cm,
 		}
+
+		player.hub.readPlayer <- msg
+		player.SetState(&PlayerRequestedForLobby{})
 	}
 }
 
@@ -246,7 +238,7 @@ func (p *Player) SetState(newState PlayerState) {
 
 func GetNewPlayer(conn *websocket.Conn, hub *Hub) *Player {
 	player := &Player{
-		id:           "",
+		id:           randomAlphanumericString(),
 		conn:         conn,
 		socketClosed: false,
 		clientMsg:    make(chan ClientMessage),
@@ -323,4 +315,14 @@ func (p *Player) HandleLobbyMessage(lm LobbyMessage, channelOpen bool) {
 
 func (p *Player) HandleHubMessage(hm HubMessage, channelOpen bool) {
 	p.state.HandleHubMessage(hm, channelOpen, p)
+}
+
+func randomAlphanumericString() string {
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	result := make([]byte, 10)
+	for i := range result {
+		result[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(result)
 }

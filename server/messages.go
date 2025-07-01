@@ -5,16 +5,17 @@ import "github.com/Tacoman44444/killiardsgame/server/tools"
 type ServerMessageType string
 
 const (
-	ServerRoomCreated  ServerMessageType = "room_created"
-	ServerRoomJoined   ServerMessageType = "room_joined"
-	ServerInvalidCode  ServerMessageType = "invalid-code"
-	ServerGameStart    ServerMessageType = "game_started"
-	ServerTurnStart    ServerMessageType = "turn_started"
-	ServerTurnTimeout  ServerMessageType = "turn_timeout"
-	ServerEntityUpdate ServerMessageType = "entity_update"
-	ServerWallUpdate   ServerMessageType = "wall_update"
-	ServerMapUpdate    ServerMessageType = "map_update"
-	ServerGameFinished ServerMessageType = "game_finished"
+	ServerRoomCreated   ServerMessageType = "room_created"
+	ServerRoomJoined    ServerMessageType = "room_joined"
+	ServerInvalidCode   ServerMessageType = "invalid-code"
+	ServerGameStart     ServerMessageType = "game_started"
+	ServerTurnStart     ServerMessageType = "turn_started"
+	ServerTurnTimeout   ServerMessageType = "turn_timeout"
+	ServerBroadcastTurn ServerMessageType = "broadcast-turn"
+	ServerEntityUpdate  ServerMessageType = "entity_update"
+	ServerWallUpdate    ServerMessageType = "wall_update"
+	ServerMapUpdate     ServerMessageType = "map_update"
+	ServerGameFinished  ServerMessageType = "game_finished"
 )
 
 type ServerMessage interface {
@@ -62,6 +63,14 @@ type TurnTimeoutMessage struct {
 
 func (m TurnTimeoutMessage) isServerMessage() {}
 
+type BroadcastTurnMessage struct {
+	Type   ServerMessageType `json:"type"`
+	Player PlayerIdentity    `json:"player"`
+	Action PlayerAction      `json:"action"`
+}
+
+func (m BroadcastTurnMessage) isServerMessage() {}
+
 type EntityUpdateMessage struct {
 	Type         ServerMessageType `json:"type"`
 	Player       PlayerIdentity    `json:"player_state"`
@@ -90,6 +99,8 @@ type GameFinishedMessage struct {
 	WinnerName string            `json:"winner_name"`
 }
 
+func (m GameFinishedMessage) isServerMessage() {}
+
 // CREATING NEW MESSAGES
 
 func newRoomCreatedMessage(code string) RoomCreatedMessage {
@@ -116,6 +127,10 @@ func newTurnTimeoutMessage() TurnTimeoutMessage {
 	return TurnTimeoutMessage{ServerTurnTimeout}
 }
 
+func newBroadcastTurnMessage(player PlayerIdentity, action PlayerAction) BroadcastTurnMessage {
+	return BroadcastTurnMessage{ServerBroadcastTurn, player, action}
+}
+
 func newEntityUpdateMessage(player PlayerIdentity, otherPlayers []PlayerIdentity, walls []WallState) EntityUpdateMessage {
 	return EntityUpdateMessage{ServerEntityUpdate, player, otherPlayers, walls}
 }
@@ -135,12 +150,13 @@ func newGameFinishedMessage(winnerName string) GameFinishedMessage {
 type ClientMessageType string
 
 const (
-	ClientCreateRoom ClientMessageType = "create-room"
-	ClientStartGame  ClientMessageType = "start-game"
-	ClientJoinRoom   ClientMessageType = "join-room"
-	ClientSendWall   ClientMessageType = "send-wall"
-	ClientSendTurn   ClientMessageType = "send-turn"
-	ClientSendId     ClientMessageType = "send-id"
+	ClientCreateRoom     ClientMessageType = "create-room"
+	ClientStartGame      ClientMessageType = "start-game"
+	ClientJoinRoom       ClientMessageType = "join-room"
+	ClientSendWall       ClientMessageType = "send-wall"
+	ClientSendTurn       ClientMessageType = "send-turn"
+	ClientSendId         ClientMessageType = "send-id"
+	ClientSimulationDone ClientMessageType = "simulation-done"
 )
 
 type ClientMessage struct {

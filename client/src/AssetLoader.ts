@@ -1,6 +1,7 @@
 export const ASSET_MAP: Record<string, string> = {
     block_sheet: "assets/spritesheet.png",
     puck: "assets/disc2.png",
+    createroom_button: "assets/createroom.png",
 }
 
 export const images = new Map<string, HTMLImageElement>();

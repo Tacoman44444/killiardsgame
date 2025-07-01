@@ -4,9 +4,10 @@
 import { Arena, MapGenData } from "./Arena";
 import { Camera } from "./camera";
 import { SpriteComponent } from "./Components";
+import { GameInput, MouseButton } from "./game-states";
 import { Puck, Wall } from "./GameObjects";
 import { Circle, physicsResolver, ShotData, Vector2 } from "./physics";
-import { PlayerAction, ServerMessage } from "./socket-manager";
+import { PlayerAction, ServerMessage, WallState } from "./socket-manager";
 import { SocketEventManager } from "./socketevent-manager";
 
 const radius = 16;
@@ -21,18 +22,49 @@ interface WorldState {
     Enter() : void;
 }
 
+
+
 class ActiveState implements WorldState {
 
     name: string;
     world: World;
+    leftClickPressed: boolean;
+    leftClickCoordinates: Vector2;
     constructor(world: World) {
         this.name = "active_state";
         this.world = world;
+        this.leftClickPressed = false;
+        this.leftClickCoordinates = new Vector2(-1, -1);
     }
 
-    processInput(input: any) {
+    processInput(input: GameInput) {
         //here, we will have to process the input shot and wall placements
-        
+        if (input.type == "mousedown" && input.buttonType == MouseButton.LEFT_CLICK) {
+            this.leftClickCoordinates.x = input.cameraX;
+            this.leftClickCoordinates.y = input.cameraY;
+            this.leftClickPressed = true;
+        } else if (input.type == "mouseup" && input.buttonType == MouseButton.LEFT_CLICK) {
+            if (this.leftClickPressed) {
+                let directionX = this.leftClickCoordinates.x - input.cameraX;
+                let directionY = this.leftClickCoordinates.y - input.cameraY;
+                let action: PlayerAction = {
+                    power: 3,        // add scalable powers later
+                    direction_horizontal: directionX,
+                    direction_verical: directionY,
+                }
+                this.sendMove(action)
+            }
+        } else if (input.type == "mousedown" && input.buttonType == MouseButton.RIGHT_CLICK) {
+            let worldCoords = screenToWorld(input.cameraX, input.cameraY, this.world.camera, 200, 200, 16);
+            if (worldCoords != null) {
+                let tileCoords = worldToTile(worldCoords.x, worldCoords.y, 16);
+                let wall: WallState = {
+                    position_x: tileCoords.x * 16,
+                    position_y: tileCoords.y * 16,
+                }
+                this.sendWalls(wall);
+            }
+        }
     }
 
     update() {
@@ -59,6 +91,10 @@ class ActiveState implements WorldState {
         this.world.SetState("processing-state")
 
         //call physics resolver
+    }
+
+    sendWalls(wall: WallState) {
+        this.world.socketEventBus.emit("send-wall", wall)
     }
 
     onTurnTimeout(msg: ServerMessage) {
@@ -99,6 +135,10 @@ class ProcessingState implements WorldState {
 
     Enter() {
 
+    }
+
+    onBroadcastMove(msg: ServerMessage) {
+        //sim that physics
     }
 
     onEntityUpdate(msg: ServerMessage) {
@@ -175,4 +215,22 @@ export class World {
         this.currentState.render(ctx);
     }
 
+}
+
+function screenToWorld(mouseX: number, mouseY: number, camera: Camera, mapWidth: number, mapHeight: number, tileSize: number): Vector2 | null {
+    const worldX = mouseX + (camera.follow.pos.x - camera.width / 2);
+    const worldY = mouseY + (camera.follow.pos.y - camera.height / 2);
+
+    const maxWorldX = mapWidth * tileSize;
+    const maxWorldY = mapHeight * tileSize;
+
+    if (worldX < 0 || worldY < 0 || worldX >= maxWorldX || worldY >= maxWorldY) {
+        return null; // Out of bounds
+    }
+
+    return new Vector2(worldX, worldY);
+}
+
+function worldToTile(worldX: number, worldY: number, tileSize: number): Vector2 {
+    return new Vector2(Math.floor(worldX / tileSize), Math.floor(worldY / tileSize));
 }
