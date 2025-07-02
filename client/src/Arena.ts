@@ -29,10 +29,10 @@ export class Arena {
 
     render(ctx: CanvasRenderingContext2D, camera: Camera) {
 
-        let frameXright = camera.follow.pos.x + (camera.width / 2) + (pixelSize / 2);
-        let frameXleft = camera.follow.pos.x - (camera.width / 2) - (pixelSize / 2);
-        let frameYup = camera.follow.pos.y - (camera.height / 2) + (pixelSize / 2);
-        let frameYdown = camera.follow.pos.y + (camera.height / 2) - (pixelSize / 2);
+        let frameXright = camera.follow.x + (camera.width / 2) + (pixelSize / 2);
+        let frameXleft = camera.follow.x - (camera.width / 2) - (pixelSize / 2);
+        let frameYup = camera.follow.y - (camera.height / 2) + (pixelSize / 2);
+        let frameYdown = camera.follow.y + (camera.height / 2) - (pixelSize / 2);
 
         for (let row = 0; row < this.mapData.height; row++) {
             for (let column = 0; column < this.mapData.width; column++) {
@@ -42,8 +42,8 @@ export class Arena {
                 let tileCenterX = (column + 0.5) * pixelSize;
                 let tileCenterY = (row + 0.5) * pixelSize;
                 if (isInFrame(tileCenterX, tileCenterY, frameXright, frameXleft, frameYdown, frameYup)) {
-                    let x = (column * pixelSize) - (camera.follow.pos.x - (camera.width / 2));
-                    let y = (row * pixelSize) - (camera.follow.pos.y - (camera.height / 2));
+                    let x = (column * pixelSize) - (camera.follow.x - (camera.width / 2));
+                    let y = (row * pixelSize) - (camera.follow.y - (camera.height / 2));
                     if (this.mapData.arena[row][column] == 0) {
                     ctx.drawImage(this.walkableSprite.img, this.walkableSprite.sprite.xOffset, this.walkableSprite.sprite.yOffset, this.walkableSprite.sprite.width, this.walkableSprite.sprite.height, x, y, pixelSize, pixelSize)
                     } else if (this.mapData.arena[row][column] == 1) {

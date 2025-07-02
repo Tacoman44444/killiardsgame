@@ -2,7 +2,7 @@
 
 import { Camera } from "./camera";
 import { PositionComponent, SpriteComponent, VelocityComponent } from "./Components";
-import { Circle, Vector2 } from "./physics";
+import { Circle, Rect, Vector2 } from "./physics";
 
 interface GameObject {
 
@@ -15,15 +15,13 @@ export class Puck implements GameObject {
     name: string;
     id: string;
     puckSprite: SpriteComponent;
-    position: PositionComponent;
-    velocity: VelocityComponent;
+    circle: Circle;
 
     constructor(id: string, posX: number, posY: number) {
         this.name = "puck";
         this.id = id;
         this.puckSprite = new SpriteComponent("puck");
-        this.position = new PositionComponent(posX, posY);
-        this.velocity = new VelocityComponent(0, 0);
+        this.circle = new Circle(new Vector2(posX, posY), 16)
     }
     render(ctx: CanvasRenderingContext2D, camera: Camera) {
 
@@ -51,12 +49,12 @@ export class Wall implements GameObject {
 
     name: string;
     wallSprite: SpriteComponent;
-    position: PositionComponent;
+    rect: Rect;
 
     constructor(posX: number, posY: number) {
         this.name = "wall";
         this.wallSprite = new SpriteComponent("wallTile");
-        this.position = new PositionComponent(posX, posY);
+        this.rect = new Rect(new Vector2(posX, posY), 16, 16);
     }
 
     render(ctx: CanvasRenderingContext2D, camera: Camera) {

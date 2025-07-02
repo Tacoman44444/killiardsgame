@@ -1,6 +1,6 @@
 import { SpriteComponent } from "./Components"
 import { Puck } from "./GameObjects"
-import { JoinRoomData, ServerMessage } from "./socket-manager"
+import { ServerMessage } from "./socket-manager"
 import { SocketEventManager } from "./socketevent-manager"
 import { Board } from "./ui"
 import { World } from "./World"

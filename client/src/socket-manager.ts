@@ -154,6 +154,13 @@ class SocketManager {
         }
     }
 
+    sendSimulationDone() {
+        const msg: ClientMessage = {
+            type: "simulation-done"
+        };
+        this.send(msg);
+    }
+
     private handleMessage(e: MessageEvent) {
         const raw = e.data as string;
         let msg: ServerMessage;

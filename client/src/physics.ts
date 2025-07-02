@@ -42,6 +42,13 @@ export class Circle {
     public center: Vector2,
     public radius: number
   ) {}
+
+  update(cenX: number, cenY: number, velX: number, velY: number) {
+    this.center.x = cenX;
+    this.center.y = cenY;
+    this.velocity.x = velX;
+    this.velocity.y = velY;
+  }
 }
 
 export class Rect {
@@ -65,6 +72,16 @@ const drag = 0.989;
 const stop2 = 1e-4;
 const settleNeed = 5;
 const maxSteps = 30 * 120;
+
+export interface PhysicsState {
+  activeCircle: Circle;
+  circles: Circle[];
+  shot: ShotData;
+  walls: Rect[];
+  step: number;
+  slowFrames: number;
+  onComplete: () => void;
+}
 
 // Physics functions
 function applyImpulse(circle: Circle, shot: ShotData): void {
@@ -166,29 +183,48 @@ function resetVelocities(circles: Circle[]): void {
 }
 
 // Main physics resolver
-export function physicsResolver(
+export function startPhysicsSimulation(
   activeCircle: Circle,
   circles: Circle[],
   shot: ShotData,
-  walls: Rect[]
+  walls: Rect[],
+  onComplete: () => void
 ): void {
-  applyImpulse(activeCircle, shot);
+  const state: PhysicsState = {
+    activeCircle,
+    circles,
+    shot,
+    walls,
+    step: 0,
+    slowFrames: 0,
+    onComplete
+  };
 
-  let slowFrames = 0;
-  for (let step = 0; step < maxSteps; step++) {
-    integrate(circles);
-    resolveCircleWallCollisions(circles, walls);
-    resolveCircleCircle(circles);
-    applyFriction(circles);
+  applyImpulse(state.activeCircle, state.shot);
+  requestAnimationFrame(() => physicsStep(state));
+}
 
-    if (allStopped(circles)) {
-      slowFrames++;
-      if (slowFrames >= settleNeed) {
-        resetVelocities(circles);
-        break;
-      }
-    } else {
-      slowFrames = 0;
+function physicsStep(state: PhysicsState): void {
+  integrate(state.circles);
+  resolveCircleWallCollisions(state.circles, state.walls);
+  resolveCircleCircle(state.circles);
+  applyFriction(state.circles);
+
+  if (allStopped(state.circles)) {
+    state.slowFrames++;
+    if (state.slowFrames >= settleNeed) {
+      resetVelocities(state.circles);
+      state.onComplete();
+      return;
     }
+  } else {
+    state.slowFrames = 0;
+  }
+
+  state.step++;
+  if (state.step < maxSteps) {
+    requestAnimationFrame(() => physicsStep(state));
+  } else {
+    state.onComplete(); // force exit
   }
 }
