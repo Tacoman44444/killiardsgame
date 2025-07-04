@@ -10,6 +10,9 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // allow all origins during dev, change  production
+	},
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
@@ -47,6 +50,7 @@ func (h *Hub) Run() {
 			if plrmsg.msgType == PlayerJoinRoom {
 				lobby, ok := lobbies[plrmsg.msg.Code]
 				if ok {
+
 					hubmsg := HubMessage{
 						msgType: HubSendPlayerToLobby,
 						code:    plrmsg.msg.Code,
@@ -59,13 +63,18 @@ func (h *Hub) Run() {
 			} else if plrmsg.msgType == PlayerCreateRoom {
 
 				newCode := RandomUppercaseString6()
-				lobbies[plrmsg.msg.Code] = NewLobby(newCode, plrmsg.player)
+				fmt.Println("created new lobby code")
+				lobby := NewLobby(newCode, plrmsg.player)
+				lobbies[newCode] = lobby
+				go lobby.Run()
+				fmt.Println("new lobby created")
 				hubmsg := HubMessage{
 					msgType: HubRoomCreated,
 					code:    newCode,
 					player:  plrmsg.player,
-					lobby:   lobbies[plrmsg.msg.Code],
+					lobby:   lobby,
 				}
+				fmt.Println("informing player that a lobby has been created")
 				plrmsg.player.readHub <- hubmsg
 			}
 		case lbmsg := <-h.readLobby:
@@ -91,17 +100,18 @@ func (h *Hub) ServeWs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	player := GetNewPlayer(conn, h)
+	fmt.Println("new player just dropped")
 
 	go player.Run()
 }
 
 func RandomUppercaseString6() string {
 	letters := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	b := make([]rune, 6)
 	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+		b[i] = letters[r.Intn(len(letters))]
 	}
 	return string(b)
 }

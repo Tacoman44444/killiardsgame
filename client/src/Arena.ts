@@ -1,10 +1,10 @@
 //maps will be created by the server.
 //the server will return:
 // a list containing binary --> 0: walkable   1. abyss
-//
 
-import { Camera } from "./camera";
-import { PositionComponent, SpriteComponent } from "./Components";
+import { Camera } from "./camera.js";
+import { SpriteComponent } from "./Components.js";
+import { MapState } from "./socket-manager.js";
 
 export type MapGenData = {
     arena: number[][],
@@ -16,7 +16,7 @@ const pixelSize = 16;
 
 export class Arena {
 
-    mapData: MapGenData;
+    mapData: MapState;
     walkableSprite: SpriteComponent;
     abyssSprite: SpriteComponent;
 
@@ -28,17 +28,15 @@ export class Arena {
     }
 
     render(ctx: CanvasRenderingContext2D, camera: Camera) {
-
         let frameXright = camera.follow.x + (camera.width / 2) + (pixelSize / 2);
         let frameXleft = camera.follow.x - (camera.width / 2) - (pixelSize / 2);
-        let frameYup = camera.follow.y - (camera.height / 2) + (pixelSize / 2);
-        let frameYdown = camera.follow.y + (camera.height / 2) - (pixelSize / 2);
+        let frameYup = camera.follow.y - (camera.height / 2) - (pixelSize / 2);
+        let frameYdown = camera.follow.y + (camera.height / 2) + (pixelSize / 2);
 
         for (let row = 0; row < this.mapData.height; row++) {
             for (let column = 0; column < this.mapData.width; column++) {
 
                 //if tile in camera, then render it.
-
                 let tileCenterX = (column + 0.5) * pixelSize;
                 let tileCenterY = (row + 0.5) * pixelSize;
                 if (isInFrame(tileCenterX, tileCenterY, frameXright, frameXleft, frameYdown, frameYup)) {

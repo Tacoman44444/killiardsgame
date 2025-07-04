@@ -17,8 +17,43 @@ type PlayerIdentity struct {
 	circle *tools.Circle
 }
 
+type ClientPlayerIdentity struct {
+	Id        string  `json:"id"`
+	PositionX float64 `json:"position_x"`
+	PositionY float64 `json:"position_y"`
+	VelocityX float64 `json:"velocity_x"`
+	VelocityY float64 `json:"velocity_y"`
+}
+
+func FormatPlayerId(playerId PlayerIdentity) ClientPlayerIdentity {
+	return ClientPlayerIdentity{
+		Id:        playerId.id,
+		PositionX: playerId.circle.Center.X,
+		PositionY: playerId.circle.Center.Y,
+		VelocityX: playerId.circle.Velocity.X,
+		VelocityY: playerId.circle.Velocity.Y,
+	}
+}
+
+func FormatPlayerIds(playerIds []PlayerIdentity) []ClientPlayerIdentity {
+	formattedIds := make([]ClientPlayerIdentity, 0)
+	for i := range playerIds {
+		formattedIds = append(formattedIds, FormatPlayerId(playerIds[i]))
+	}
+	return formattedIds
+}
+
 type PlayerAction struct {
-	data tools.ShotData
+	Power               int     `json:"power"`
+	DirectionHorizontal float64 `json:"direction_horizontal"`
+	DirectionVertical   float64 `json:"direction_vertical"`
+}
+
+func PlayerActionToShotData(action PlayerAction) tools.ShotData {
+	return tools.ShotData{
+		Power:     action.Power,
+		Direction: tools.Vector2{X: action.DirectionHorizontal, Y: action.DirectionVertical},
+	}
 }
 
 type WallState struct {
@@ -27,9 +62,14 @@ type WallState struct {
 }
 
 func WallStateRefToWallState(wallState []*WallState) []WallState {
-	w := make([]WallState, len(wallState))
-	for i := range wallState {
-		w = append(w, *wallState[i])
+	if wallState == nil {
+		return []WallState{}
+	}
+	w := make([]WallState, 0, len(wallState))
+	for _, ws := range wallState {
+		if ws != nil {
+			w = append(w, *ws)
+		}
 	}
 	return w
 }
@@ -49,7 +89,7 @@ func GetNewGame(players []string) *GameState {
 	for i := range players {
 		playerMap[players[i]] = &PlayerIdentity{players[i], &tools.Circle{Center: safeSpawns[i], Radius: PUCK_RADIUS, Velocity: tools.Vector2{X: 0, Y: 0}}}
 	}
-	walls := make([]*WallState, 10)
+	walls := make([]*WallState, 0, 10)
 
 	gamestate := GameState{
 		players:   playerMap,
@@ -79,7 +119,7 @@ func PlayerMapToSliceRef(playerMap map[string]*PlayerIdentity) []*PlayerIdentity
 
 func PlayerMapToCircles(playerMap map[string]*PlayerIdentity) []*tools.Circle {
 	playerSlice := PlayerMapToSliceRef(playerMap)
-	circleSlice := make([]*tools.Circle, len(playerSlice))
+	circleSlice := make([]*tools.Circle, 0, len(playerSlice))
 	for i := range playerSlice {
 		circleSlice = append(circleSlice, playerSlice[i].circle)
 	}
@@ -87,7 +127,10 @@ func PlayerMapToCircles(playerMap map[string]*PlayerIdentity) []*tools.Circle {
 }
 
 func GetWallRectRefs(walls []*WallState) []*tools.Rect {
-	rects := make([]*tools.Rect, len(walls))
+	rects := make([]*tools.Rect, 0, len(walls))
+	if len(walls) == 0 {
+		return rects
+	}
 	for i := range walls {
 		rects = append(rects, walls[i].rect)
 	}

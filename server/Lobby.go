@@ -1,8 +1,8 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"time"
 
 	"github.com/Tacoman44444/killiardsgame/server/tools"
 	"github.com/gorilla/websocket"
@@ -28,6 +28,113 @@ type LobbyMessage struct {
 	allPlayers []PlayerIdentity
 	walls      []WallState
 	mapState   tools.MapState
+	action     PlayerAction
+}
+
+type TurnQueue struct {
+	data       []*Player
+	currentIdx int
+}
+
+func NewTurnQueue() *TurnQueue {
+	return &TurnQueue{
+		data:       []*Player{},
+		currentIdx: 0,
+	}
+}
+
+func (q *TurnQueue) Add(p *Player) {
+	q.data = append(q.data, p)
+}
+
+func (q *TurnQueue) RemoveByID(id string) error {
+	//IMPLEMENT LATER
+	return errors.New("player not found")
+}
+
+func (q *TurnQueue) Current() *Player {
+	return q.data[q.currentIdx]
+}
+
+func (q *TurnQueue) Next() *Player {
+	q.currentIdx = (q.currentIdx + 1) % len(q.data)
+	return q.data[q.currentIdx]
+}
+
+func (q *TurnQueue) List() []*Player {
+	return q.data
+}
+
+func (q *TurnQueue) Size() int {
+	return len(q.data)
+}
+
+type Lobby struct {
+	code              string
+	Inbound           chan PlayerMessage
+	readHub           chan HubMessage
+	gameState         *GameState
+	players           map[*websocket.Conn]*Player
+	queue             *TurnQueue
+	owner             *Player
+	currentState      LobbyState
+	waitingforplayers LobbyWaitingForPlayers
+	inturn            LobbyInTurn
+	processingturn    LobbyProcessingTurn
+	simCount          int
+}
+
+func NewLobby(code string, owner *Player) *Lobby {
+	lb := Lobby{
+		code:      code,
+		Inbound:   make(chan PlayerMessage),
+		readHub:   make(chan HubMessage),
+		gameState: nil,
+		players:   make(map[*websocket.Conn]*Player),
+		queue:     NewTurnQueue(),
+		owner:     owner,
+		simCount:  0,
+	}
+	lb.waitingforplayers = LobbyWaitingForPlayers{}
+	lb.inturn = LobbyInTurn{}
+	lb.processingturn = LobbyProcessingTurn{}
+	lb.currentState = lb.waitingforplayers
+	lb.currentState.Enter(&lb)
+	lb.players[owner.conn] = owner
+	lb.queue.Add(owner)
+
+	return &lb
+}
+
+func (l *Lobby) Run() {
+	fmt.Printf("[LOBBY] Lobby %s is now running\n", l.code)
+	for {
+		select {
+		case pm, ok := <-l.Inbound:
+			if !ok {
+				fmt.Printf("[LOBBY] Lobby %s Inbound channel closed\n", l.code)
+				return
+			}
+			l.currentState.HandlePlayerMessage(pm, ok, l)
+
+		case hm, ok := <-l.readHub:
+			if !ok {
+				fmt.Printf("[LOBBY] Lobby %s readHub channel closed\n", l.code)
+				return
+			}
+			l.currentState.HandleHubMessage(hm, ok, l)
+		}
+	}
+}
+
+func (l *Lobby) NextTurn() {
+	l.queue.Next()
+}
+
+func (l *Lobby) SetState(state LobbyState) {
+	l.currentState.Exit(l)
+	l.currentState = state
+	l.currentState.Enter(l)
 }
 
 type LobbyState interface {
@@ -37,70 +144,17 @@ type LobbyState interface {
 	Exit(lobby *Lobby)
 }
 
-type Lobby struct {
-	code      string
-	Inbound   chan PlayerMessage
-	readHub   chan HubMessage
-	state     LobbyState
-	gameState *GameState
-	players   map[*websocket.Conn]*Player
-	turnCycle []*websocket.Conn
-	turn      int
-	owner     *Player
-}
-
-func NewLobby(code string, owner *Player) *Lobby {
-	lb := Lobby{
-		code:      code,
-		Inbound:   make(chan PlayerMessage),
-		readHub:   make(chan HubMessage),
-		state:     &LobbyWaitingForPlayers{},
-		gameState: nil,
-		players:   make(map[*websocket.Conn]*Player),
-		turnCycle: make([]*websocket.Conn, 0, 10),
-		turn:      0,
-		owner:     owner,
-	}
-	lb.turnCycle = append(lb.turnCycle, owner.conn)
-	lb.players[owner.conn] = owner
-
-	return &lb
-}
-
-func (l *Lobby) SetState(newState LobbyState) {
-	l.state.Exit(l)
-	l.state = newState
-	l.state.Enter(l)
-}
-
-func (l *Lobby) SwitchTurn() {
-	if l.turn == len(l.turnCycle)-1 {
-		l.turn = 0
-	} else {
-		l.turn++
-	}
-}
-
 type LobbyWaitingForPlayers struct{}
 
-func (l *LobbyWaitingForPlayers) Enter(lobby *Lobby) {
-
-}
-
-func (l *LobbyWaitingForPlayers) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lobby *Lobby) {
+func (l LobbyWaitingForPlayers) Enter(lobby *Lobby) {}
+func (l LobbyWaitingForPlayers) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lobby *Lobby) {
 	if !channelOpen {
-		//handle player channel not being open
 	}
 
 	switch pm.msgType {
 	case PlayerStartGame:
 		if pm.sender == lobby.owner.conn {
-			//start game and send all clients a message that the game has begun
-			for key, _ := range lobby.players {
-				lobby.turnCycle = append(lobby.turnCycle, key)
-			}
-			lobby.SetState(&LobbyWaitingForTurn{})
-			players := make([]string, 10)
+			players := make([]string, 0, 10)
 			for _, value := range lobby.players {
 				players = append(players, value.id)
 			}
@@ -116,36 +170,29 @@ func (l *LobbyWaitingForPlayers) HandlePlayerMessage(pm PlayerMessage, channelOp
 				}
 				value.readLobby <- msg
 			}
+			lobby.SetState(lobby.inturn)
 		} else if pm.sender != lobby.owner.conn {
 			fmt.Println("only the party owner can start the match")
 			return
 		}
 	}
 }
-
-func (l *LobbyWaitingForPlayers) HandleHubMessage(hm HubMessage, channelOpen bool, lobby *Lobby) {
+func (l LobbyWaitingForPlayers) HandleHubMessage(hm HubMessage, channelOpen bool, lobby *Lobby) {
 	if !channelOpen {
-		//handle player channel not being open
 	}
 
 	switch hm.msgType {
 	case HubSendPlayerToLobby:
 		lobby.players[hm.player.conn] = hm.player
+		lobby.queue.Add(hm.player)
 	}
 }
+func (l LobbyWaitingForPlayers) Exit(lobby *Lobby) {}
 
-func (l *LobbyWaitingForPlayers) Exit(lobby *Lobby) {
+type LobbyInTurn struct{}
 
-}
-
-type LobbyWaitingForTurn struct {
-	timer  *time.Timer
-	cancel bool
-}
-
-func (l *LobbyWaitingForTurn) Enter(lobby *Lobby) {
-	l.timer = time.NewTimer(lobby.gameState.turnTimer)
-
+func (l LobbyInTurn) Enter(lobby *Lobby) {
+	lobby.NextTurn()
 	msg := LobbyMessage{
 		msgType:    LobbySendTurnStart,
 		player:     PlayerIdentity{},
@@ -153,52 +200,31 @@ func (l *LobbyWaitingForTurn) Enter(lobby *Lobby) {
 		walls:      nil,
 		mapState:   tools.MapState{},
 	}
-	lobby.players[lobby.turnCycle[lobby.turn]].readLobby <- msg
-
-	go func() {
-		<-l.timer.C
-		if l.cancel {
-			return
-		}
-		msg := LobbyMessage{
-			msgType:    LobbySendTurnTimeout,
-			player:     PlayerIdentity{},
-			allPlayers: PlayerMapToSlice(lobby.gameState.players),
-			walls:      WallStateRefToWallState(lobby.gameState.walls),
-			mapState:   *lobby.gameState.mapState,
-		}
-		lobby.players[lobby.turnCycle[lobby.turn]].readLobby <- msg
-		lobby.SwitchTurn()
-		//change state
-		lobby.SetState(&LobbyWaitingForTurn{})
-
-	}()
+	player := lobby.queue.Current()
+	fmt.Println("sending a turn start message to: ", player.id)
+	player.readLobby <- msg
 }
-
-func (l *LobbyWaitingForTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lobby *Lobby) {
+func (l LobbyInTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lobby *Lobby) {
 	if !channelOpen {
-		//handle channel being closed
 	}
-
 	switch pm.msgType {
-	case PlayerStartGame:
-		fmt.Println("game already in progress")
 	case PlayerSendAction:
-		if pm.sender == lobby.turnCycle[lobby.turn] {
+		fmt.Println("PLAYA sent an action")
+		if pm.sender == lobby.queue.Current().conn {
 			for _, value := range lobby.players {
 				if pm.player.id != value.id {
+					fmt.Println("BROADCASTING MOVE")
 					msg := LobbyMessage{
-						msgType:    LobbyBroadcastMove,
-						player:     *lobby.gameState.players[value.id],
-						allPlayers: PlayerMapToSlice(lobby.gameState.players),
-						walls:      WallStateRefToWallState(lobby.gameState.walls),
-						mapState:   *lobby.gameState.mapState,
+						msgType: LobbyBroadcastMove,
+						player:  *lobby.gameState.players[pm.player.id],
+						action:  pm.msg.Action,
 					}
 					value.readLobby <- msg
 				}
 			}
-			tools.PhysicsResolver(lobby.gameState.players[pm.senderID].circle, PlayerMapToCircles(lobby.gameState.players), GetWallRectRefs(lobby.gameState.walls), pm.msg.Action.data)
-			for _, value := range lobby.players { //sending the message to all players
+			fmt.Println("is this null ?:  ", pm.msg.Action)
+			tools.PhysicsResolver(lobby.gameState.players[pm.senderID].circle, PlayerMapToCircles(lobby.gameState.players), GetWallRectRefs(lobby.gameState.walls), PlayerActionToShotData(pm.msg.Action))
+			for _, value := range lobby.players {
 				msg := LobbyMessage{
 					msgType:    LobbySendEntityUpdate,
 					player:     *lobby.gameState.players[value.id],
@@ -209,13 +235,17 @@ func (l *LobbyWaitingForTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen 
 				value.readLobby <- msg
 			}
 
-			lobby.SetState(&LobbyBetweenTurns{})
+			lobby.SetState(lobby.processingturn)
+		} else {
+			fmt.Println("the guy who send the move doesnt seem to match with the guy who should be the one sendinrgirngrihafug")
+			fmt.Println("sender ID: ", pm.sender)
+			fmt.Println("active guy ID: ", lobby.queue.Current().conn)
 		}
 	case PlayerSendWall:
-		if pm.sender == lobby.turnCycle[lobby.turn] {
+		if pm.sender == lobby.queue.Current().conn {
 			newWall := pm.msg.Wall
 			lobby.gameState.walls = append(lobby.gameState.walls, &newWall)
-			for _, value := range lobby.players { //sending the message to all players
+			for _, value := range lobby.players {
 				msg := LobbyMessage{
 					msgType:    LobbySendWallUpdate,
 					player:     *lobby.gameState.players[value.id],
@@ -228,83 +258,25 @@ func (l *LobbyWaitingForTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen 
 		}
 	}
 }
+func (l LobbyInTurn) HandleHubMessage(hm HubMessage, channelOpen bool, lobby *Lobby) {}
+func (l LobbyInTurn) Exit(lobby *Lobby)                                              {}
 
-func (l *LobbyWaitingForTurn) HandleHubMessage(hm HubMessage, channelOpen bool, lobby *Lobby) {
+type LobbyProcessingTurn struct{}
 
+func (l LobbyProcessingTurn) Enter(lobby *Lobby) {
+	lobby.simCount = 0
 }
-
-func (l *LobbyWaitingForTurn) Exit(lobby *Lobby) {
-	l.cancel = true
-}
-
-type LobbyBetweenTurns struct {
-	timer      *time.Timer //this timer is for when clients dont send "simulation-done" in time
-	cancel     bool
-	simRunning []*websocket.Conn
-}
-
-func (l *LobbyBetweenTurns) Enter(lobby *Lobby) {
-	l.timer = time.NewTimer(time.Duration(CLIENT_AFFIRMATON_TIMEOUT_IN_SECONDS) * time.Second)
-	l.simRunning = lobby.turnCycle
-
-	go func() {
-		<-l.timer.C
-		if l.cancel {
-			return
-		}
-		lobby.SwitchTurn()
-		msg := LobbyMessage{
-			msgType:    LobbySendTurnStart,
-			player:     *lobby.gameState.players[lobby.players[lobby.turnCycle[lobby.turn]].id],
-			allPlayers: nil,
-			walls:      WallStateRefToWallState(lobby.gameState.walls),
-			mapState:   *lobby.gameState.mapState,
-		}
-		for _, value := range lobby.players {
-			value.readLobby <- msg
-		}
-		lobby.SetState(&LobbyWaitingForTurn{})
-
-	}()
-}
-
-func (l *LobbyBetweenTurns) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lobby *Lobby) {
+func (l LobbyProcessingTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lobby *Lobby) {
 	if !channelOpen {
-		//handle channel not being open
 	}
-
 	switch pm.msgType {
 	case PlayerSimulationDone:
-		for i := range l.simRunning {
-			if l.simRunning[i] == pm.sender {
-				l.simRunning = append(l.simRunning[:i], l.simRunning[i+1:]...)
-			}
+		lobby.simCount++
+		fmt.Println("simCount is: ", lobby.simCount, " and the no. of players are: ", lobby.queue.Size())
+		if lobby.simCount >= lobby.queue.Size() {
+			lobby.SetState(lobby.inturn)
 		}
-		//HANDLE THE CASE FOR WHEN THE PLAYER DISCONNECTS
-	}
-
-	if len(l.simRunning) == 0 {
-		lobby.SwitchTurn()
-		msg := LobbyMessage{
-			msgType:    LobbySendTurnStart,
-			player:     *lobby.gameState.players[lobby.players[lobby.turnCycle[lobby.turn]].id],
-			allPlayers: nil,
-			walls:      WallStateRefToWallState(lobby.gameState.walls),
-			mapState:   *lobby.gameState.mapState,
-		}
-		for _, value := range lobby.players {
-			value.readLobby <- msg
-		}
-
-		lobby.SetState(&LobbyWaitingForTurn{})
-
 	}
 }
-
-func (l *LobbyBetweenTurns) HandleHubMessage(hm HubMessage, channelOpen bool, lobby *Lobby) {
-
-}
-
-func (l *LobbyBetweenTurns) Exit(lobby *Lobby) {
-	l.cancel = true
-}
+func (l LobbyProcessingTurn) HandleHubMessage(hm HubMessage, channelOpen bool, lobby *Lobby) {}
+func (l LobbyProcessingTurn) Exit(lobby *Lobby)                                              { lobby.simCount = 0 }

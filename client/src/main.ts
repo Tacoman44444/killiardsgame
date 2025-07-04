@@ -1,18 +1,19 @@
 import { loadAll } from "./AssetLoader.js"
-import { SpriteComponent } from "./Components.js";
-import { Arena } from "./Arena.js";
+import { Game } from "./game-states.js";
+import { SocketEventManager } from "./socketevent-manager.js";
+import { SocketManager } from "./socket-manager.js";
 
 async function main() {
 
     await loadAll();
-
-    const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
-    const ctx = canvas.getContext('2d')!;
-    console.log("works");
-    const temp = new SpriteComponent("floorTile");
-    const black = new SpriteComponent("abyssTile");
-    //const arena = new Arena(temp, black);
-    //arena.render(400, 300, ctx);
+    let wsEventManager = new SocketEventManager();
+    let ws = new SocketManager("ws://localhost:8000/ws", wsEventManager);
+    await ws.connect();
+    const game = new Game(wsEventManager);
+    game.setupInputListeners();
+    console.log("time to play the game");
+    game.Play();
+    
   }
 
 main().catch(err => {

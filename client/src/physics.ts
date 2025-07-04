@@ -1,7 +1,3 @@
-// Physics types and constants
-
-import { PositionComponent } from "./Components";
-
 export class Vector2 {
   constructor(public x: number, public y: number) {}
 
@@ -85,12 +81,14 @@ export interface PhysicsState {
 
 // Physics functions
 function applyImpulse(circle: Circle, shot: ShotData): void {
+  console.log("ye velocity lga rha hu mai: ", shot.direction.norm().multiply(shot.power))
   circle.velocity = shot.direction.norm().multiply(shot.power);
 }
 
 function integrate(circles: Circle[]): void {
   for (const c of circles) {
-    c.center = c.center.add(c.velocity.multiply(dt));
+    c.center.x += c.velocity.x * dt;
+    c.center.y += c.velocity.y * dt;
   }
 }
 
@@ -205,6 +203,7 @@ export function startPhysicsSimulation(
 }
 
 function physicsStep(state: PhysicsState): void {
+  
   integrate(state.circles);
   resolveCircleWallCollisions(state.circles, state.walls);
   resolveCircleCircle(state.circles);
@@ -223,6 +222,7 @@ function physicsStep(state: PhysicsState): void {
 
   state.step++;
   if (state.step < maxSteps) {
+    //console.log("physics step", state.step, "pos:", state.activeCircle.center);
     requestAnimationFrame(() => physicsStep(state));
   } else {
     state.onComplete(); // force exit

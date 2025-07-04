@@ -1,5 +1,4 @@
-import { PositionComponent } from "./Components";
-import { Vector2 } from "./physics";
+import { Vector2 } from "./physics.js";
 
 export class Camera {
     follow: Vector2;

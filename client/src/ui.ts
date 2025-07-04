@@ -1,5 +1,5 @@
-import { SpriteComponent } from "./Components";
-import { GameInput } from "./game-states";
+import { SpriteComponent } from "./Components.js";
+import { GameInput } from "./game-states.js";
 
 
 export class Board {
@@ -196,7 +196,12 @@ class InputTextBox {
 };
 
 function contains(ui: uiElement, inputX: number, inputY: number): boolean {
-    return inputX > ui.x && inputX < ui.x + ui.width && inputY > ui.y - ui.height && inputY < ui.y
+    return (
+        inputX >= ui.x &&
+        inputX <= ui.x + ui.width &&
+        inputY >= ui.y &&
+        inputY <= ui.y + ui.height
+    );
 }
 
 function isAlphanumeric(key: string): boolean {

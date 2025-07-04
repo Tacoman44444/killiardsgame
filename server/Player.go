@@ -106,6 +106,7 @@ func (p *PlayerRequestedForLobby) HandleHubMessage(hm HubMessage, channelOpen bo
 		player.WriteToClient(newRoomJoinedMessage(), player.id)
 		player.SetState(&PlayerInLobby{l: hm.lobby})
 	case HubRoomCreated:
+		fmt.Println("writeing to player rn that room has been created")
 		player.WriteToClient(newRoomCreatedMessage(hm.code), player.id)
 		player.SetState(&PlayerInLobby{l: hm.lobby})
 	case HubPlayerInvalidCode:
@@ -145,10 +146,16 @@ func (p *PlayerInLobby) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, pl
 	if !channelOpen {
 		//
 	}
-
 	switch lm.msgType {
 	case LobbySendGameStart:
-		msg := newGameStartMessage(lm.mapState, lm.player, lm.allPlayers)
+		fmt.Println("[PLAYER IN LOBBY] sending player a game-start message")
+		otherPlayers := make([]PlayerIdentity, 0)
+		for i := range lm.allPlayers {
+			if lm.allPlayers[i].id != lm.player.id {
+				otherPlayers = append(otherPlayers, lm.allPlayers[i])
+			}
+		}
+		msg := newGameStartMessage(lm.mapState, lm.player, otherPlayers)
 		player.WriteToClient(msg, player.id)
 		player.SetState(&PlayerInGame{})
 	}
@@ -176,8 +183,11 @@ func (p *PlayerInGame) HandleClientMessage(cm ClientMessage, channelOpen bool, p
 		fmt.Println("cannot start game while player is already ingame")
 	case ClientSendTurn:
 		playerMsg := PlayerMessage{
-			msgType: PlayerSendAction,
-			msg:     cm,
+			msgType:  PlayerSendAction,
+			player:   player,
+			sender:   player.conn,
+			senderID: player.id,
+			msg:      cm,
 		}
 
 		player.lobby.Inbound <- playerMsg
@@ -187,6 +197,11 @@ func (p *PlayerInGame) HandleClientMessage(cm ClientMessage, channelOpen bool, p
 			msg:     cm,
 		}
 
+		player.lobby.Inbound <- playerMsg
+	case ClientSimulationDone:
+		playerMsg := PlayerMessage{
+			msgType: PlayerSimulationDone,
+		}
 		player.lobby.Inbound <- playerMsg
 	}
 }
@@ -212,6 +227,9 @@ func (p *PlayerInGame) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, pla
 	case LobbySendTurnTimeout:
 		serverMsg := newTurnTimeoutMessage()
 		player.WriteToClient(serverMsg, player.id)
+	case LobbyBroadcastMove:
+		serverMsg := newBroadcastTurnMessage(lm.player, lm.action)
+		player.WriteToClient(serverMsg, player.id)
 	}
 }
 
@@ -232,8 +250,12 @@ type Player struct {
 }
 
 func (p *Player) SetState(newState PlayerState) {
-	p.state.Exit()
+	if p.state != nil {
+		p.state.Exit()
+	}
+	fmt.Printf("[STATE] Entering %T for player %s\n", newState, p.id)
 	p.state = newState
+	p.state.Enter(p)
 }
 
 func GetNewPlayer(conn *websocket.Conn, hub *Hub) *Player {
@@ -246,6 +268,7 @@ func GetNewPlayer(conn *websocket.Conn, hub *Hub) *Player {
 		readHub:      make(chan HubMessage),
 		hub:          hub,
 	}
+	player.SetState(&PlayerInHub{})
 
 	return player
 }

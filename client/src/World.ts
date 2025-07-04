@@ -1,14 +1,14 @@
 //this world will only be available in playstate.
 //all different gamestates that can have a 'world' will be nested within this world state.
 
-import { Arena, MapGenData } from "./Arena";
-import { Camera } from "./camera";
-import { SpriteComponent } from "./Components";
-import { GameInput, MouseButton } from "./game-states";
-import { Puck, Wall } from "./GameObjects";
-import { Circle, Rect, ShotData, startPhysicsSimulation, Vector2 } from "./physics";
-import { PlayerAction, ServerMessage, WallState } from "./socket-manager";
-import { SocketEventManager } from "./socketevent-manager";
+import { Arena, MapGenData } from "./Arena.js";
+import { Camera } from "./camera.js";
+import { SpriteComponent } from "./Components.js";
+import { GameInput, MouseButton } from "./game-states.js";
+import { Puck, Wall } from "./GameObjects.js";
+import { Circle, Rect, ShotData, startPhysicsSimulation, Vector2 } from "./physics.js";
+import { PlayerAction, ServerMessage, WallState } from "./socket-manager.js";
+import { SocketEventManager } from "./socketevent-manager.js";
 
 const radius = 16;
 
@@ -16,9 +16,11 @@ interface WorldState {
 
     name: string;
     world: World;
+    Initialize() : void;
     processInput(input: any) : void;
     render(ctx: CanvasRenderingContext2D) : void;
     Enter() : void;
+    Exit() : void;
 }
 
 
@@ -29,10 +31,14 @@ class ActiveState implements WorldState {
     leftClickPressed: boolean;
     leftClickCoordinates: Vector2;
     constructor(world: World) {
-        this.name = "active_state";
+        this.name = "active-state";
         this.world = world;
         this.leftClickPressed = false;
         this.leftClickCoordinates = new Vector2(-1, -1);
+    }
+
+    Initialize() {
+        this.sub()
     }
 
     processInput(input: GameInput) {
@@ -43,12 +49,12 @@ class ActiveState implements WorldState {
             this.leftClickPressed = true;
         } else if (input.type == "mouseup" && input.buttonType == MouseButton.LEFT_CLICK) {
             if (this.leftClickPressed) {
-                let directionX = this.leftClickCoordinates.x - input.cameraX;
-                let directionY = this.leftClickCoordinates.y - input.cameraY;
+                let directionX = input.cameraX - this.leftClickCoordinates.x;
+                let directionY = input.cameraY - this.leftClickCoordinates.y;
                 let action: PlayerAction = {
-                    power: 3,        // add scalable powers later
+                    power: 300,        // add scalable powers later
                     direction_horizontal: directionX,
-                    direction_verical: directionY,
+                    direction_vertical: directionY,
                 }
                 this.sendMove(action)
             }
@@ -76,21 +82,42 @@ class ActiveState implements WorldState {
     }
 
     Enter() {
+        console.log("entering active state")
         this.world.camera.SwitchFollow(this.world.player.circle.center);
+    }
+
+    Exit() {
+        //this.unsub();
+    }
+
+    sub() {
+        this.world.socketEventBus.subscribe("turn-timeout", this.onTurnTimeout.bind(this));
+        this.world.socketEventBus.subscribe("wall-update", this.onWallUpdate.bind(this));
+    }
+
+    private unsub() {
+        this.world.socketEventBus.unsubscribe("turn-timeout", this.onTurnTimeout);
+        this.world.socketEventBus.unsubscribe("wall-update", this.onWallUpdate)
     }
 
     sendMove(action: PlayerAction) {
         //tell socket manager to send move
+        console.log("shot vector:", action.direction_horizontal, action.direction_vertical);
+
+        console.log("sending a move to the server");
+        console.log(action)
         this.world.socketEventBus.emit("send-turn", action);
         this.world.SetState("processing-state");
 
         //call physics resolver
-        let oppCircles: Circle[] = [];
-        this.world.opps.forEach((opp) => oppCircles.push(opp.circle));
+        let allCircles: Circle[] = [];
+        this.world.opps.forEach((opp) => allCircles.push(opp.circle));
+        allCircles.push(this.world.player.circle)
         let wallRects: Rect[] = [];
         this.world.walls.forEach((wall) => wallRects.push(wall.rect));
-
-        startPhysicsSimulation(this.world.player.circle, oppCircles, new ShotData(new Vector2(action.direction_horizontal, action.direction_verical), action.power), wallRects, () => {
+        console.log("starting the physics simulation")
+        startPhysicsSimulation(this.world.player.circle, allCircles, new ShotData(new Vector2(action.direction_horizontal, action.direction_vertical), action.power), wallRects, () => {
+            console.log("sending a sim-sone message for my own move")
             this.world.socketEventBus.emit("simulation-done");
         });
     }
@@ -100,17 +127,19 @@ class ActiveState implements WorldState {
     }
 
     onTurnTimeout(msg: ServerMessage) {
+        console.log("received a turn timeout message")
         this.world.SetState("processing-state")
     }
 
     onWallUpdate(msg: ServerMessage) {
-        this.world.walls = [];
-        if (msg.type == "wall-update") {
-            msg.walls.forEach((wallState) => this.world.walls.push(new Wall(wallState.position_x, wallState.position_y)))
+        console.log("recieved a wall update message")
+        if (this.world.currentState.name == "active-state") {   //bandage solution
+            this.world.walls = [];
+            if (msg.type == "wall-update") {
+                msg.walls.forEach((wallState) => this.world.walls.push(new Wall(wallState.position_x, wallState.position_y)))
+            }
         }
     }
-
-    
 }
 
 class ProcessingState implements WorldState {
@@ -118,14 +147,16 @@ class ProcessingState implements WorldState {
     name: string;
     world: World;
     constructor(world: World) {
-        this.name = "processing_state";
+        this.name = "processing-state";
         this.world = world;
     }
 
-    processInput(input: any) {
-        //here, there is nothing to process for now
-
+    Initialize() {
+        console.log("subsribing")
+        this.sub()
     }
+
+    processInput(input: any) {}
 
     render(ctx: CanvasRenderingContext2D) {
         this.world.arena.render(ctx, this.world.camera);
@@ -138,26 +169,47 @@ class ProcessingState implements WorldState {
     }
 
     Enter() {
+        console.log("entering processing state")
+    }
 
+    Exit() {
+        //this.unsub();
+    }
+
+    sub() {
+        this.world.socketEventBus.subscribe("broadcast-turn", this.onBroadcastMove.bind(this));
+        this.world.socketEventBus.subscribe("entity-update", this.onEntityUpdate.bind(this));
+        this.world.socketEventBus.subscribe("turn-started", this.onTurnStart.bind(this));
+        this.world.socketEventBus.subscribe("wall-update", this.onWallUpdate.bind(this));
+        this.world.socketEventBus.subscribe("map-update", this.onMapUpdate.bind(this));
+    }
+
+    private unsub() {
+        this.world.socketEventBus.unsubscribe("broadcast-turn", this.onBroadcastMove);
+        this.world.socketEventBus.unsubscribe("entity-update", this.onEntityUpdate);
+        this.world.socketEventBus.unsubscribe("turn-started", this.onTurnStart);
+        this.world.socketEventBus.unsubscribe("wall-update", this.onWallUpdate);
+        this.world.socketEventBus.unsubscribe("map-update:", this.onMapUpdate);
     }
 
     onBroadcastMove(msg: ServerMessage) {
         //sim that physics
+        console.log("recieved a move from the server");
         if (msg.type == "broadcast-turn") {
-            let otherCircles: Circle[] = [];
+            let allCircles: Circle[] = [];
             let activeCircle: Circle | null = null;
             this.world.opps.forEach((opp) => {
                 if (opp.id == msg.player.id) {
                     activeCircle = opp.circle;
-                } else {
-                    otherCircles.push(opp.circle);
                 }
+                allCircles.push(opp.circle);
             });
-            otherCircles.push(this.world.player.circle);
+            allCircles.push(this.world.player.circle);
             let wallRects: Rect[] = [];
             this.world.walls.forEach((wall) => wallRects.push(wall.rect));
             if (activeCircle != null) {
-                startPhysicsSimulation(activeCircle, otherCircles, new ShotData(new Vector2(msg.action.direction_horizontal, msg.action.direction_verical), msg.action.power), wallRects, () => {
+                startPhysicsSimulation(activeCircle, allCircles, new ShotData(new Vector2(msg.action.direction_horizontal, msg.action.direction_vertical), msg.action.power), wallRects, () => {
+                    console.log("sending a sim-done message for someone elses move")
                     this.world.socketEventBus.emit("simulation-done");
                 });
             }
@@ -167,7 +219,10 @@ class ProcessingState implements WorldState {
 
     onEntityUpdate(msg: ServerMessage) {
         //check with your own physics simulation.
+        /*
+
         if (msg.type == "entity-update") {
+            console.log("recieved an entity update message")
             this.world.opps.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
             msg.other_players.sort((a, b) => a.id.localeCompare(b.id, undefined, {numeric: true}));
 
@@ -179,19 +234,23 @@ class ProcessingState implements WorldState {
             this.world.player.circle.update(msg.player.position_x, msg.player.position_y, msg.player.velocity_x, msg.player.velocity_y)
             this.world.walls = [];
             msg.walls.forEach((wallState) => this.world.walls.push(new Wall(wallState.position_x, wallState.position_y)))
-        }
+        } */
         
     }
 
     onTurnStart(msg: ServerMessage) {
+        console.log("recieved a turn start message")
         this.world.SetState("active-state")
     }
 
     onWallUpdate(msg: ServerMessage) {
-        if (msg.type == "wall-update") {
+        if (this.world.currentState.name == "processing-state") {   //temp solution
+            if (msg.type == "wall-update") {
             this.world.walls = [];
             msg.walls.forEach((wallState) => this.world.walls.push(new Wall(wallState.position_x, wallState.position_y)))
+            }
         }
+
     }
 
     onMapUpdate(msg: ServerMessage) {
@@ -225,15 +284,20 @@ export class World {
         }
         this.currentState = this.states.processingState;
         this.socketEventBus = socketEventBus;
+        this.currentState.Enter();
+        this.states.activeState.Initialize();
+        this.states.processingState.Initialize();
     }
 
     SetState(state: string) {
         switch (state) {
             case "active-state":
+                this.currentState.Exit();
                 this.currentState = this.states.activeState;
                 this.currentState.Enter();
                 break;
             case "processing-state":
+                this.currentState.Exit();
                 this.currentState = this.states.processingState;
                 this.currentState.Enter();
                 break;

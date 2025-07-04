@@ -1,7 +1,7 @@
 //the primary role of the socket manager is to communicate with the server
 
-import { MapGenData } from "./Arena";
-import { SocketEventManager } from "./socketevent-manager";
+import { MapGenData } from "./Arena.js";
+import { SocketEventManager } from "./socketevent-manager.js";
 
 export type PlayerIdentity = {
     id:         string;
@@ -14,11 +14,13 @@ export type PlayerIdentity = {
 export type PlayerAction = {
     power: number;
     direction_horizontal: number;
-    direction_verical: number;
+    direction_vertical: number;
 }
 
 export type MapState = {
-    map: MapGenData;
+    arena: number[][],
+    width: number,
+    height: number,
 }
 
 export type WallState = {
@@ -103,14 +105,28 @@ export type ServerMessage =
     };
 
 
-class SocketManager {
+export class SocketManager {
     private socket: WebSocket;
     private eventManager: SocketEventManager;
     
     constructor(url: string, eventManager: SocketEventManager) {
         this.socket = new WebSocket(url);
         this.eventManager = eventManager;
-        this.socket.onmessage = (e) => this.eventManager;
+        this.socket.onerror = (e) => console.error("WebSocket error", e);
+        this.socket.onmessage = (e) => this.handleMessage(e);
+        this.subscribeToEventBus();
+    }
+
+    async connect(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.socket.onopen = () => {
+                console.log("connected");
+                resolve();
+            };
+            this.socket.onerror = (e) => {
+                reject(e);
+            };
+        });
     }
 
     private send(msg: ClientMessage) {
@@ -118,6 +134,7 @@ class SocketManager {
     }
 
     sendCreateRoomRequest() {
+        console.log("sending create room request")
         const msg: ClientMessage = {
             type: "create-room",
         };
@@ -132,6 +149,7 @@ class SocketManager {
     }
 
     sendJoinRoomRequest(code: string) {
+        console.log("sending join room request")
         const msg: ClientMessage = {
             type: "join-room",
             code: code,
@@ -152,6 +170,7 @@ class SocketManager {
             type: "send-turn",
             player_action: PlayerAction,
         }
+        this.send(msg);
     }
 
     sendSimulationDone() {
@@ -159,6 +178,15 @@ class SocketManager {
             type: "simulation-done"
         };
         this.send(msg);
+    }
+
+    private subscribeToEventBus() {
+        this.eventManager.subscribe("create-room", this.sendCreateRoomRequest.bind(this));
+        this.eventManager.subscribe("start-game", this.sendStartGameRequest.bind(this));
+        this.eventManager.subscribe("join-room", this.sendJoinRoomRequest.bind(this));
+        this.eventManager.subscribe("send-wall", this.sendWall.bind(this));
+        this.eventManager.subscribe("send-turn", this.sendTurn.bind(this));
+        this.eventManager.subscribe("simulation-done", this.sendSimulationDone.bind(this));
     }
 
     private handleMessage(e: MessageEvent) {
@@ -169,6 +197,9 @@ class SocketManager {
         } catch (err) {
             console.error("Bad JSON from the server: ", err);
             return;
+        }
+        if (msg.type == "broadcast-turn") {
+            console.log("ACTUALLY recieved a move from the server")
         }
         this.eventManager.emit(msg.type, msg);
     }

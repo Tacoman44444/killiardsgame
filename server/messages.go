@@ -5,17 +5,17 @@ import "github.com/Tacoman44444/killiardsgame/server/tools"
 type ServerMessageType string
 
 const (
-	ServerRoomCreated   ServerMessageType = "room_created"
-	ServerRoomJoined    ServerMessageType = "room_joined"
+	ServerRoomCreated   ServerMessageType = "room-created"
+	ServerRoomJoined    ServerMessageType = "room-joined"
 	ServerInvalidCode   ServerMessageType = "invalid-code"
-	ServerGameStart     ServerMessageType = "game_started"
-	ServerTurnStart     ServerMessageType = "turn_started"
-	ServerTurnTimeout   ServerMessageType = "turn_timeout"
+	ServerGameStart     ServerMessageType = "game-start"
+	ServerTurnStart     ServerMessageType = "turn-started"
+	ServerTurnTimeout   ServerMessageType = "turn-timeout"
 	ServerBroadcastTurn ServerMessageType = "broadcast-turn"
-	ServerEntityUpdate  ServerMessageType = "entity_update"
-	ServerWallUpdate    ServerMessageType = "wall_update"
-	ServerMapUpdate     ServerMessageType = "map_update"
-	ServerGameFinished  ServerMessageType = "game_finished"
+	ServerEntityUpdate  ServerMessageType = "entity-update"
+	ServerWallUpdate    ServerMessageType = "wall-update"
+	ServerMapUpdate     ServerMessageType = "map-update"
+	ServerGameFinished  ServerMessageType = "game-finished"
 )
 
 type ServerMessage interface {
@@ -42,10 +42,10 @@ type InvalidCodeMessage struct {
 func (m InvalidCodeMessage) isServerMessage() {}
 
 type GameStartMessage struct {
-	Type         ServerMessageType `json:"type"`
-	Map          tools.MapState    `json:"map"`
-	Player       PlayerIdentity    `json:"player"`
-	OtherPlayers []PlayerIdentity  `json:"other_players"`
+	Type         ServerMessageType      `json:"type"`
+	Map          tools.MapState         `json:"map"`
+	Player       ClientPlayerIdentity   `json:"player"`
+	OtherPlayers []ClientPlayerIdentity `json:"other_players"`
 }
 
 func (m GameStartMessage) isServerMessage() {}
@@ -64,18 +64,18 @@ type TurnTimeoutMessage struct {
 func (m TurnTimeoutMessage) isServerMessage() {}
 
 type BroadcastTurnMessage struct {
-	Type   ServerMessageType `json:"type"`
-	Player PlayerIdentity    `json:"player"`
-	Action PlayerAction      `json:"action"`
+	Type   ServerMessageType    `json:"type"`
+	Player ClientPlayerIdentity `json:"player"`
+	Action PlayerAction         `json:"action"`
 }
 
 func (m BroadcastTurnMessage) isServerMessage() {}
 
 type EntityUpdateMessage struct {
-	Type         ServerMessageType `json:"type"`
-	Player       PlayerIdentity    `json:"player_state"`
-	OtherPlayers []PlayerIdentity  `json:"other_players"`
-	Walls        []WallState       `json:"walls"`
+	Type         ServerMessageType      `json:"type"`
+	Player       ClientPlayerIdentity   `json:"player_state"`
+	OtherPlayers []ClientPlayerIdentity `json:"other_players"`
+	Walls        []WallState            `json:"walls"`
 }
 
 func (m EntityUpdateMessage) isServerMessage() {}
@@ -116,7 +116,7 @@ func newInvalidCodeMessage() InvalidCodeMessage {
 }
 
 func newGameStartMessage(mapState tools.MapState, player PlayerIdentity, otherPlayers []PlayerIdentity) GameStartMessage {
-	return GameStartMessage{ServerGameStart, mapState, player, otherPlayers}
+	return GameStartMessage{ServerGameStart, mapState, FormatPlayerId(player), FormatPlayerIds(otherPlayers)}
 }
 
 func newTurnStartMessage(playerID string) TurnStartMessage {
@@ -128,11 +128,11 @@ func newTurnTimeoutMessage() TurnTimeoutMessage {
 }
 
 func newBroadcastTurnMessage(player PlayerIdentity, action PlayerAction) BroadcastTurnMessage {
-	return BroadcastTurnMessage{ServerBroadcastTurn, player, action}
+	return BroadcastTurnMessage{ServerBroadcastTurn, FormatPlayerId(player), action}
 }
 
 func newEntityUpdateMessage(player PlayerIdentity, otherPlayers []PlayerIdentity, walls []WallState) EntityUpdateMessage {
-	return EntityUpdateMessage{ServerEntityUpdate, player, otherPlayers, walls}
+	return EntityUpdateMessage{ServerEntityUpdate, FormatPlayerId(player), FormatPlayerIds(otherPlayers), walls}
 }
 
 func newWallUpdateMessage(walls []WallState) WallUpdateMessage {

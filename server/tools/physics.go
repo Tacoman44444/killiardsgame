@@ -61,8 +61,8 @@ func (c *Circle) DistanceSquared(c1 *Circle) float64 {
 }
 
 type ShotData struct {
-	direction Vector2
-	power     int //should be a value from one to 5, could make this an enum.
+	Power     int //should be a value from one to 5, could make this an enum.
+	Direction Vector2
 }
 
 const (
@@ -97,7 +97,7 @@ func PhysicsResolver(activePlayer *Circle, playerPositions []*Circle, walls []*R
 // HELPER FUNCTIONS
 
 func ApplyImpulse(circle *Circle, shotData ShotData) {
-	circle.Velocity = shotData.direction.Norm().Multiply(float64(shotData.power))
+	circle.Velocity = shotData.Direction.Norm().Multiply(float64(shotData.Power))
 }
 
 func Integrate(circles []*Circle) {
