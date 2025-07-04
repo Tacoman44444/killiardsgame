@@ -49,10 +49,10 @@ class ActiveState implements WorldState {
             this.leftClickPressed = true;
         } else if (input.type == "mouseup" && input.buttonType == MouseButton.LEFT_CLICK) {
             if (this.leftClickPressed) {
-                let directionX = input.cameraX - this.leftClickCoordinates.x;
-                let directionY = input.cameraY - this.leftClickCoordinates.y;
+                let directionX = this.leftClickCoordinates.x - input.cameraX;
+                let directionY = this.leftClickCoordinates.y - input.cameraY;
                 let action: PlayerAction = {
-                    power: 300,        // add scalable powers later
+                    power: 700,        // add scalable powers later
                     direction_horizontal: directionX,
                     direction_vertical: directionY,
                 }

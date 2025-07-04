@@ -65,7 +65,7 @@ export class ShotData {
 // Constants
 const dt = 1 / 120;
 const drag = 0.989;
-const stop2 = 1e-4;
+const stop2 = 0.05;
 const settleNeed = 5;
 const maxSteps = 30 * 120;
 

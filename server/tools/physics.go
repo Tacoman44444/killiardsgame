@@ -68,7 +68,7 @@ type ShotData struct {
 const (
 	dt         = 1.0 / 120.0
 	drag       = 0.989
-	stop2      = 1e-4
+	stop2      = 0.05
 	settleNeed = 5
 	maxSteps   = 30 * 120
 )
