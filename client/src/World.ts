@@ -52,19 +52,19 @@ class ActiveState implements WorldState {
                 let directionX = this.leftClickCoordinates.x - input.cameraX;
                 let directionY = this.leftClickCoordinates.y - input.cameraY;
                 let action: PlayerAction = {
-                    power: 700,        // add scalable powers later
+                    power: 1500,        // add scalable powers later
                     direction_horizontal: directionX,
                     direction_vertical: directionY,
                 }
                 this.sendMove(action)
             }
         } else if (input.type == "mousedown" && input.buttonType == MouseButton.RIGHT_CLICK) {
-            let worldCoords = screenToWorld(input.cameraX, input.cameraY, this.world.camera, 200, 200, 16);
+            let worldCoords = screenToWorld(input.cameraX, input.cameraY, this.world.camera, 200, 200, 64);
             if (worldCoords != null) {
-                let tileCoords = worldToTile(worldCoords.x, worldCoords.y, 16);
+                let tileCoords = worldToTile(worldCoords.x, worldCoords.y, 64);
                 let wall: WallState = {
-                    position_x: tileCoords.x * 16,
-                    position_y: tileCoords.y * 16,
+                    position_x: tileCoords.x * 64,
+                    position_y: tileCoords.y * 64,
                 }
                 this.sendWalls(wall);
             }
@@ -116,9 +116,13 @@ class ActiveState implements WorldState {
         let wallRects: Rect[] = [];
         this.world.walls.forEach((wall) => wallRects.push(wall.rect));
         console.log("starting the physics simulation")
+        this.world.simInProgress = true;
         startPhysicsSimulation(this.world.player.circle, allCircles, new ShotData(new Vector2(action.direction_horizontal, action.direction_vertical), action.power), wallRects, () => {
-            console.log("sending a sim-sone message for my own move")
+            console.log("sending a sim-done message for my own move")
             this.world.socketEventBus.emit("simulation-done");
+            if (this.world.bufferedEntityUpdate) {
+                this.world.UpdateEntity(this.world.bufferedEntityUpdate)
+            }
         });
     }
 
@@ -184,14 +188,6 @@ class ProcessingState implements WorldState {
         this.world.socketEventBus.subscribe("map-update", this.onMapUpdate.bind(this));
     }
 
-    private unsub() {
-        this.world.socketEventBus.unsubscribe("broadcast-turn", this.onBroadcastMove);
-        this.world.socketEventBus.unsubscribe("entity-update", this.onEntityUpdate);
-        this.world.socketEventBus.unsubscribe("turn-started", this.onTurnStart);
-        this.world.socketEventBus.unsubscribe("wall-update", this.onWallUpdate);
-        this.world.socketEventBus.unsubscribe("map-update:", this.onMapUpdate);
-    }
-
     onBroadcastMove(msg: ServerMessage) {
         //sim that physics
         console.log("recieved a move from the server");
@@ -208,9 +204,14 @@ class ProcessingState implements WorldState {
             let wallRects: Rect[] = [];
             this.world.walls.forEach((wall) => wallRects.push(wall.rect));
             if (activeCircle != null) {
+                this.world.simInProgress = true;
                 startPhysicsSimulation(activeCircle, allCircles, new ShotData(new Vector2(msg.action.direction_horizontal, msg.action.direction_vertical), msg.action.power), wallRects, () => {
                     console.log("sending a sim-done message for someone elses move")
+                    this.world.simInProgress = false;
                     this.world.socketEventBus.emit("simulation-done");
+                    if (this.world.bufferedEntityUpdate) {
+                        this.world.UpdateEntity(this.world.bufferedEntityUpdate)
+                    }
                 });
             }
             
@@ -218,24 +219,26 @@ class ProcessingState implements WorldState {
     }
 
     onEntityUpdate(msg: ServerMessage) {
-        //check with your own physics simulation.
-        /*
+
+        if (this.world.simInProgress) {
+            console.log("Simulation in progress. Buffering entity update.");
+            this.world.bufferedEntityUpdate = msg;
+            return;
+        }
 
         if (msg.type == "entity-update") {
             console.log("recieved an entity update message")
-            this.world.opps.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
-            msg.other_players.sort((a, b) => a.id.localeCompare(b.id, undefined, {numeric: true}));
+            let allPlayers: Puck[] = [...this.world.opps, this.world.player]
+            allPlayers.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+            msg.all_players.sort((a, b) => a.id.localeCompare(b.id, undefined, {numeric: true}));
 
-            for (let i = 0; i < this.world.opps.length; i++) {
-                this.world.opps[i].circle.update(msg.other_players[i].position_x, msg.other_players[i].position_y, msg.other_players[i].velocity_x, msg.other_players[i].velocity_y)
+            for (let i = 0; i < allPlayers.length; i++) {
+                allPlayers[i].circle.update(msg.all_players[i].position_x, msg.all_players[i].position_y, msg.all_players[i].velocity_x, msg.all_players[i].velocity_y)
             }
 
-
-            this.world.player.circle.update(msg.player.position_x, msg.player.position_y, msg.player.velocity_x, msg.player.velocity_y)
             this.world.walls = [];
             msg.walls.forEach((wallState) => this.world.walls.push(new Wall(wallState.position_x, wallState.position_y)))
-        } */
-        
+        }
     }
 
     onTurnStart(msg: ServerMessage) {
@@ -244,7 +247,7 @@ class ProcessingState implements WorldState {
     }
 
     onWallUpdate(msg: ServerMessage) {
-        if (this.world.currentState.name == "processing-state") {   //temp solution
+        if (this.world.currentState.name == "processing-state") {
             if (msg.type == "wall-update") {
             this.world.walls = [];
             msg.walls.forEach((wallState) => this.world.walls.push(new Wall(wallState.position_x, wallState.position_y)))
@@ -273,6 +276,9 @@ export class World {
     }
     currentState: WorldState;
     socketEventBus: SocketEventManager
+    simInProgress: boolean = false;
+    bufferedEntityUpdate: ServerMessage | null = null;
+
     constructor(mapData: MapGenData, player: Puck, opps: Puck[], socketEventBus: SocketEventManager) {
         this.player = player;
         this.opps = opps
@@ -287,6 +293,23 @@ export class World {
         this.currentState.Enter();
         this.states.activeState.Initialize();
         this.states.processingState.Initialize();
+    }
+
+    UpdateEntity(msg: ServerMessage) {
+        if (msg.type == "entity-update") {
+            console.log("this is a delayed entity update rahhh")
+            let allPlayers: Puck[] = [...this.opps, this.player];
+            console.log("client length: ", allPlayers.length)
+            console.log("server length: ", msg.all_players.length)
+            allPlayers.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+            msg.all_players.sort((a, b) => a.id.localeCompare(b.id, undefined, {numeric: true}));
+
+            for (let i = 0; i < allPlayers.length; i++) {
+                allPlayers[i].circle.update(msg.all_players[i].position_x, msg.all_players[i].position_y, msg.all_players[i].velocity_x, msg.all_players[i].velocity_y)
+            }
+            this.walls = [];
+            msg.walls.forEach((wallState) => this.walls.push(new Wall(wallState.position_x, wallState.position_y)))
+        }
     }
 
     SetState(state: string) {

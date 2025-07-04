@@ -36,7 +36,7 @@ func (m *MapState) DebugLog() {
 const (
 	TILETYPE_WALKABLE       = 0
 	TILETYPE_ABYSS          = 1
-	TILE_SIZE               = 16
+	TILE_SIZE               = 64
 	mapArraySize            = 200
 	randomFillPercent       = 50
 	safeSpawnDistanceSquare = 36

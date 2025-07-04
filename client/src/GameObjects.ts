@@ -69,7 +69,7 @@ export class Wall implements GameObject {
     constructor(posX: number, posY: number) {
         this.name = "wall";
         this.wallSprite = new SpriteComponent("wallTile");
-        this.rect = new Rect(new Vector2(posX, posY), 16, 16);
+        this.rect = new Rect(new Vector2(posX, posY), 64, 64);
     }
 
     render(ctx: CanvasRenderingContext2D, camera: Camera) {
@@ -81,7 +81,7 @@ export class Wall implements GameObject {
             this.wallSprite.sprite.xOffset, this.wallSprite.sprite.yOffset,
             this.wallSprite.sprite.width, this.wallSprite.sprite.height,
             x, y,
-            16, 16
+            64, 64
         );
     }
 }

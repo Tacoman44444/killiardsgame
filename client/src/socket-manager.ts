@@ -88,7 +88,7 @@ export type ServerMessage =
     | {
         type: "entity-update";
         player: PlayerIdentity;
-        other_players: PlayerIdentity[];
+        all_players: PlayerIdentity[];
         walls: WallState[]
     }
     | {

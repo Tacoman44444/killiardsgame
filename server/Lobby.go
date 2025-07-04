@@ -222,9 +222,9 @@ func (l LobbyInTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lob
 					value.readLobby <- msg
 				}
 			}
-			fmt.Println("is this null ?:  ", pm.msg.Action)
 			tools.PhysicsResolver(lobby.gameState.players[pm.senderID].circle, PlayerMapToCircles(lobby.gameState.players), GetWallRectRefs(lobby.gameState.walls), PlayerActionToShotData(pm.msg.Action))
 			for _, value := range lobby.players {
+				fmt.Println("Sending entity update message to: ", value.id)
 				msg := LobbyMessage{
 					msgType:    LobbySendEntityUpdate,
 					player:     *lobby.gameState.players[value.id],

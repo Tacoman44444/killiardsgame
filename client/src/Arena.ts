@@ -12,7 +12,7 @@ export type MapGenData = {
     height: number,
 }
 
-const pixelSize = 16;
+const pixelSize = 64;
 
 export class Arena {
 

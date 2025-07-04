@@ -73,8 +73,8 @@ func (m BroadcastTurnMessage) isServerMessage() {}
 
 type EntityUpdateMessage struct {
 	Type         ServerMessageType      `json:"type"`
-	Player       ClientPlayerIdentity   `json:"player_state"`
-	OtherPlayers []ClientPlayerIdentity `json:"other_players"`
+	Player       ClientPlayerIdentity   `json:"player"`
+	OtherPlayers []ClientPlayerIdentity `json:"all_players"`
 	Walls        []WallState            `json:"walls"`
 }
 
@@ -131,8 +131,8 @@ func newBroadcastTurnMessage(player PlayerIdentity, action PlayerAction) Broadca
 	return BroadcastTurnMessage{ServerBroadcastTurn, FormatPlayerId(player), action}
 }
 
-func newEntityUpdateMessage(player PlayerIdentity, otherPlayers []PlayerIdentity, walls []WallState) EntityUpdateMessage {
-	return EntityUpdateMessage{ServerEntityUpdate, FormatPlayerId(player), FormatPlayerIds(otherPlayers), walls}
+func newEntityUpdateMessage(player PlayerIdentity, allPlayers []PlayerIdentity, walls []WallState) EntityUpdateMessage {
+	return EntityUpdateMessage{ServerEntityUpdate, FormatPlayerId(player), FormatPlayerIds(allPlayers), walls}
 }
 
 func newWallUpdateMessage(walls []WallState) WallUpdateMessage {
