@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/Tacoman44444/killiardsgame/server/tools"
@@ -12,6 +11,7 @@ type LobbyMessageType int
 
 const (
 	LobbySendEntityUpdate LobbyMessageType = iota
+	LobbySendEliminations
 	LobbySendWallUpdate
 	LobbySendMapUpdate
 	LobbySendTurnStart
@@ -22,13 +22,14 @@ const (
 )
 
 type LobbyMessage struct {
-	msgType    LobbyMessageType
-	lobbyCode  string
-	player     PlayerIdentity
-	allPlayers []PlayerIdentity
-	walls      []WallState
-	mapState   tools.MapState
-	action     PlayerAction
+	msgType           LobbyMessageType
+	lobbyCode         string
+	player            PlayerIdentity
+	allPlayers        []PlayerIdentity
+	eliminatedPlayers []PlayerIdentity
+	walls             []WallState
+	mapState          tools.MapState
+	action            PlayerAction
 }
 
 type TurnQueue struct {
@@ -47,11 +48,46 @@ func (q *TurnQueue) Add(p *Player) {
 	q.data = append(q.data, p)
 }
 
-func (q *TurnQueue) RemoveByID(id string) error {
-	//IMPLEMENT LATER
-	return errors.New("player not found")
-}
+func (q *TurnQueue) RemoveByID(id string) bool {
+	if len(q.data) == 0 {
+		fmt.Println("queue is empty")
+		return false
+	}
 
+	index := -1
+	for i, p := range q.data {
+		if p.id == id {
+			index = i
+			break
+		}
+	}
+
+	if index == -1 {
+		fmt.Println("player not found")
+		return false
+	}
+
+	// Remove the player from the slice
+	q.data = append(q.data[:index], q.data[index+1:]...)
+
+	// Adjust currentIdx if needed
+	if index < q.currentIdx {
+		q.currentIdx-- // shift left to account for removed item
+	} else if index == q.currentIdx {
+		if q.currentIdx == 0 {
+			q.currentIdx = len(q.data) - 1
+		} else {
+			q.currentIdx--
+		}
+	}
+
+	// Handle edge case: queue is now empty
+	if len(q.data) == 0 {
+		q.currentIdx = 0
+	}
+
+	return true
+}
 func (q *TurnQueue) Current() *Player {
 	return q.data[q.currentIdx]
 }
@@ -77,6 +113,7 @@ type Lobby struct {
 	players           map[*websocket.Conn]*Player
 	queue             *TurnQueue
 	owner             *Player
+	eliminated        []*Player
 	currentState      LobbyState
 	waitingforplayers LobbyWaitingForPlayers
 	inturn            LobbyInTurn
@@ -135,6 +172,21 @@ func (l *Lobby) SetState(state LobbyState) {
 	l.currentState.Exit(l)
 	l.currentState = state
 	l.currentState.Enter(l)
+}
+
+func (l *Lobby) Eliminate() []PlayerIdentity {
+	activePlayers := append([]*Player{}, l.queue.List()...)
+	eliminatedThisRound := make([]PlayerIdentity, 0, 10)
+	for i := range activePlayers {
+		if tools.IsPlayerEliminated(l.gameState.mapState, l.gameState.players[activePlayers[i].id].circle.Center) {
+			//DELTE THE PLAYAA
+			if l.queue.RemoveByID(activePlayers[i].id) {
+				l.eliminated = append(l.eliminated, activePlayers[i])
+				eliminatedThisRound = append(eliminatedThisRound, *l.gameState.players[activePlayers[i].id])
+			}
+		}
+	}
+	return eliminatedThisRound
 }
 
 type LobbyState interface {
@@ -225,10 +277,16 @@ func (l LobbyInTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lob
 			tools.PhysicsResolver(lobby.gameState.players[pm.senderID].circle, PlayerMapToCircles(lobby.gameState.players), GetWallRectRefs(lobby.gameState.walls), PlayerActionToShotData(pm.msg.Action))
 			for _, value := range lobby.players {
 				fmt.Println("Sending entity update message to: ", value.id)
+				//turn the active queue into a list, then get them playeridentities
+				activePlayers := append([]*Player{}, lobby.queue.List()...)
+				activePlayerIDs := make([]PlayerIdentity, 0, 10)
+				for i := range activePlayers {
+					activePlayerIDs = append(activePlayerIDs, *lobby.gameState.players[activePlayers[i].id])
+				}
 				msg := LobbyMessage{
 					msgType:    LobbySendEntityUpdate,
 					player:     *lobby.gameState.players[value.id],
-					allPlayers: PlayerMapToSlice(lobby.gameState.players),
+					allPlayers: activePlayerIDs,
 					walls:      WallStateRefToWallState(lobby.gameState.walls),
 					mapState:   *lobby.gameState.mapState,
 				}
@@ -274,6 +332,21 @@ func (l LobbyProcessingTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen b
 		lobby.simCount++
 		fmt.Println("simCount is: ", lobby.simCount, " and the no. of players are: ", lobby.queue.Size())
 		if lobby.simCount >= lobby.queue.Size() {
+			//eliminate the dead players...
+			eliminated := lobby.Eliminate()
+			if len(eliminated) != 0 {
+				//some1 dead
+				msg := LobbyMessage{
+					msgType:           LobbySendEliminations,
+					eliminatedPlayers: eliminated,
+				}
+				for _, value := range lobby.players {
+					value.readLobby <- msg
+				}
+
+			} else {
+				fmt.Println("everybody lived this turn")
+			}
 			lobby.SetState(lobby.inturn)
 		}
 	}

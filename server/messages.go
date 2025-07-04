@@ -13,6 +13,7 @@ const (
 	ServerTurnTimeout   ServerMessageType = "turn-timeout"
 	ServerBroadcastTurn ServerMessageType = "broadcast-turn"
 	ServerEntityUpdate  ServerMessageType = "entity-update"
+	ServerEliminations  ServerMessageType = "e"
 	ServerWallUpdate    ServerMessageType = "wall-update"
 	ServerMapUpdate     ServerMessageType = "map-update"
 	ServerGameFinished  ServerMessageType = "game-finished"
@@ -80,6 +81,13 @@ type EntityUpdateMessage struct {
 
 func (m EntityUpdateMessage) isServerMessage() {}
 
+type EliminationMessage struct {
+	Type         ServerMessageType      `json:"type"`
+	Eliminations []ClientPlayerIdentity `json:"eliminated_players"`
+}
+
+func (m EliminationMessage) isServerMessage() {}
+
 type WallUpdateMessage struct {
 	Type  ServerMessageType `json:"type"`
 	Walls []WallState       `json:"walls"`
@@ -133,6 +141,10 @@ func newBroadcastTurnMessage(player PlayerIdentity, action PlayerAction) Broadca
 
 func newEntityUpdateMessage(player PlayerIdentity, allPlayers []PlayerIdentity, walls []WallState) EntityUpdateMessage {
 	return EntityUpdateMessage{ServerEntityUpdate, FormatPlayerId(player), FormatPlayerIds(allPlayers), walls}
+}
+
+func newEliminationMessage(elims []PlayerIdentity) EliminationMessage {
+	return EliminationMessage{ServerEliminations, FormatPlayerIds(elims)}
 }
 
 func newWallUpdateMessage(walls []WallState) WallUpdateMessage {

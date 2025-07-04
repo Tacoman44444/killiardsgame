@@ -92,6 +92,10 @@ export type ServerMessage =
         walls: WallState[]
     }
     | {
+        type: "e"
+        eliminated_players: PlayerIdentity[]
+    }
+    | {
         type: "wall-update";
         walls: WallState[];
     }

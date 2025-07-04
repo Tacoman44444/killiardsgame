@@ -4,7 +4,7 @@
 import { Arena, MapGenData } from "./Arena.js";
 import { Camera } from "./camera.js";
 import { SpriteComponent } from "./Components.js";
-import { GameInput, MouseButton } from "./game-states.js";
+import { Game, GameInput, MouseButton } from "./game-states.js";
 import { Puck, Wall } from "./GameObjects.js";
 import { Circle, Rect, ShotData, startPhysicsSimulation, Vector2 } from "./physics.js";
 import { PlayerAction, ServerMessage, WallState } from "./socket-manager.js";
@@ -78,7 +78,10 @@ class ActiveState implements WorldState {
 
         this.world.opps.forEach((opp) => opp.render(ctx, this.world.camera))
 
-        this.world.player.render(ctx, this.world.camera)
+        if (!this.world.isDead) {
+            this.world.player.render(ctx, this.world.camera)
+        }
+        
     }
 
     Enter() {
@@ -160,7 +163,17 @@ class ProcessingState implements WorldState {
         this.sub()
     }
 
-    processInput(input: any) {}
+    processInput(input: GameInput) {
+        if (this.world.isDead) {
+            if (input.type == "keydown" && input.event.code == "Space") {
+            this.world.spectatingIndex++;
+            if (this.world.spectatingIndex >= this.world.opps.length) {
+                this.world.spectatingIndex = 0;
+            }
+            this.world.camera.SwitchFollow(this.world.opps[this.world.spectatingIndex].circle.center)
+            }
+        }
+    }
 
     render(ctx: CanvasRenderingContext2D) {
         this.world.arena.render(ctx, this.world.camera);
@@ -169,7 +182,10 @@ class ProcessingState implements WorldState {
 
         this.world.opps.forEach((opp) => opp.render(ctx, this.world.camera))
 
-        this.world.player.render(ctx, this.world.camera)
+        if (!this.world.isDead) {
+            this.world.player.render(ctx, this.world.camera)
+        }
+        
     }
 
     Enter() {
@@ -186,6 +202,7 @@ class ProcessingState implements WorldState {
         this.world.socketEventBus.subscribe("turn-started", this.onTurnStart.bind(this));
         this.world.socketEventBus.subscribe("wall-update", this.onWallUpdate.bind(this));
         this.world.socketEventBus.subscribe("map-update", this.onMapUpdate.bind(this));
+        this.world.socketEventBus.subscribe("e", this.onEliminations.bind(this));
     }
 
     onBroadcastMove(msg: ServerMessage) {
@@ -261,11 +278,33 @@ class ProcessingState implements WorldState {
 
         }
     }
+
+    onEliminations(msg: ServerMessage) {
+        if (msg.type == "e") {
+            console.log("recieved a elimination message on the server")
+            msg.eliminated_players.forEach((elimed_player) => {
+                if (elimed_player.id == this.world.player.id) {
+                    //shiiii guess we're dead
+                    console.log("shiiii gues we're dead")
+                    //IMPLEMENT DYING MAN
+                    //don't render your puck
+                    //allow player to cycle thru other ppl 
+                    this.world.isDead = true;
+
+
+                } else {
+                    this.world.opps = this.world.opps.filter((opp) => opp.id !== elimed_player.id);
+                }
+            })
+        }
+    }
 }
 
 export class World {
 
     player: Puck;
+    isDead: boolean = false;
+    spectatingIndex: number = -1;
     opps: Puck[] = [];
     arena: Arena;
     walls: Wall[] = [];

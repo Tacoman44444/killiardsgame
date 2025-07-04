@@ -230,6 +230,9 @@ func (p *PlayerInGame) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, pla
 	case LobbyBroadcastMove:
 		serverMsg := newBroadcastTurnMessage(lm.player, lm.action)
 		player.WriteToClient(serverMsg, player.id)
+	case LobbySendEliminations:
+		serverMsg := newEliminationMessage(lm.eliminatedPlayers)
+		player.WriteToClient(serverMsg, player.id)
 	}
 }
 

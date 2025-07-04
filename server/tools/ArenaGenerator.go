@@ -65,6 +65,7 @@ func GenerateSafeSpawns(number int, mapState *MapState) []Vector2 {
 	for i := range spawnTiles {
 		spawns = append(spawns, TileToWorldCoords(spawnTiles[i]))
 	}
+	fmt.Println(spawns)
 	return spawns
 }
 
@@ -107,6 +108,19 @@ func GetWalkableTile(mapState *MapState) Vector2Int {
 			return Vector2Int{X: col, Y: row}
 		}
 		iteration++
+	}
+}
+
+func IsPlayerEliminated(mapState *MapState, playerCenter Vector2) bool {
+	tileCoords := WorldToTileCoords(playerCenter)
+	if tileCoords.X > mapState.Height || tileCoords.Y > mapState.Width {
+		return true
+	}
+	tile := mapState.Arena[tileCoords.Y][tileCoords.X]
+	if tile == TILETYPE_ABYSS {
+		return true
+	} else {
+		return false
 	}
 }
 
