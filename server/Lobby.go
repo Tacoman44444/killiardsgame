@@ -18,6 +18,7 @@ const (
 	LobbySendTurnTimeout
 	LobbyBroadcastMove
 	LobbySendGameStart
+	LobbySendGameOver
 	LobbyClose // :<
 )
 
@@ -30,6 +31,8 @@ type LobbyMessage struct {
 	walls             []WallState
 	mapState          tools.MapState
 	action            PlayerAction
+	result            string
+	winnerName        string
 }
 
 type TurnQueue struct {
@@ -118,6 +121,7 @@ type Lobby struct {
 	waitingforplayers LobbyWaitingForPlayers
 	inturn            LobbyInTurn
 	processingturn    LobbyProcessingTurn
+	gameOver          LobbyGameOver
 	simCount          int
 }
 
@@ -135,6 +139,7 @@ func NewLobby(code string, owner *Player) *Lobby {
 	lb.waitingforplayers = LobbyWaitingForPlayers{}
 	lb.inturn = LobbyInTurn{}
 	lb.processingturn = LobbyProcessingTurn{}
+	lb.gameOver = LobbyGameOver{}
 	lb.currentState = lb.waitingforplayers
 	lb.currentState.Enter(&lb)
 	lb.players[owner.conn] = owner
@@ -347,9 +352,45 @@ func (l LobbyProcessingTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen b
 			} else {
 				fmt.Println("everybody lived this turn")
 			}
-			lobby.SetState(lobby.inturn)
+			if lobby.queue.Size() == 0 {
+				//we have a draw
+				msg := LobbyMessage{
+					msgType:    LobbySendGameOver,
+					result:     "draw",
+					winnerName: "",
+				}
+				for _, value := range lobby.players {
+					value.readLobby <- msg
+				}
+				lobby.SetState(lobby.gameOver)
+
+			} else if lobby.queue.Size() == 1 {
+				//ladies and gentlemen we have a winner
+				msg := LobbyMessage{
+					msgType:    LobbySendGameOver,
+					result:     "win",
+					winnerName: lobby.queue.Current().id,
+				}
+				for _, value := range lobby.players {
+					value.readLobby <- msg
+				}
+				lobby.SetState(lobby.gameOver)
+			} else {
+				//we continue
+				lobby.SetState(lobby.inturn)
+			}
+
 		}
 	}
 }
 func (l LobbyProcessingTurn) HandleHubMessage(hm HubMessage, channelOpen bool, lobby *Lobby) {}
 func (l LobbyProcessingTurn) Exit(lobby *Lobby)                                              { lobby.simCount = 0 }
+
+type LobbyGameOver struct{}
+
+func (l LobbyGameOver) Enter(lobby *Lobby) {}
+func (l LobbyGameOver) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lobby *Lobby) {
+	//handle player returning to lobby
+}
+func (l LobbyGameOver) HandleHubMessage(hm HubMessage, channelOpen bool, lobby *Lobby) {}
+func (l LobbyGameOver) Exit(lobby *Lobby)                                              {}

@@ -113,7 +113,7 @@ func GetWalkableTile(mapState *MapState) Vector2Int {
 
 func IsPlayerEliminated(mapState *MapState, playerCenter Vector2) bool {
 	tileCoords := WorldToTileCoords(playerCenter)
-	if tileCoords.X > mapState.Height || tileCoords.Y > mapState.Width {
+	if tileCoords.X >= mapState.Height || tileCoords.Y >= mapState.Width {
 		return true
 	}
 	tile := mapState.Arena[tileCoords.Y][tileCoords.X]

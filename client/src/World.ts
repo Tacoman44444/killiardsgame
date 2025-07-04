@@ -203,6 +203,7 @@ class ProcessingState implements WorldState {
         this.world.socketEventBus.subscribe("wall-update", this.onWallUpdate.bind(this));
         this.world.socketEventBus.subscribe("map-update", this.onMapUpdate.bind(this));
         this.world.socketEventBus.subscribe("e", this.onEliminations.bind(this));
+        this.world.socketEventBus.subscribe("game-finished", this.onGameFinished.bind(this));
     }
 
     onBroadcastMove(msg: ServerMessage) {
@@ -296,6 +297,20 @@ class ProcessingState implements WorldState {
                     this.world.opps = this.world.opps.filter((opp) => opp.id !== elimed_player.id);
                 }
             })
+        }
+    }
+
+    onGameFinished(msg: ServerMessage) {
+        if (msg.type == "game-finished") {
+            console.log("woo game over")
+            console.log("result: ", msg.result)
+            console.log("winner: ", msg.winner_name)
+            if (msg.result == "win" && !this.world.isDead) {
+                console.log("YOU WIN")
+            } else if (msg.result == "win" && this.world.isDead) {
+                console.log("YOU LOSE")
+                this.world.camera.SwitchFollow(this.world.opps[0].circle.center);
+            }
         }
     }
 }

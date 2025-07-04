@@ -104,6 +104,7 @@ func (m MapUpdateMessage) isServerMessage() {}
 
 type GameFinishedMessage struct {
 	Type       ServerMessageType `json:"type"`
+	Result     string            `json:"result"` //win or draw
 	WinnerName string            `json:"winner_name"`
 }
 
@@ -155,8 +156,8 @@ func newMapUpdateMessage(mapState tools.MapState) MapUpdateMessage {
 	return MapUpdateMessage{ServerMapUpdate, mapState}
 }
 
-func newGameFinishedMessage(winnerName string) GameFinishedMessage {
-	return GameFinishedMessage{ServerGameFinished, winnerName}
+func newGameFinishedMessage(result string, winnerName string) GameFinishedMessage {
+	return GameFinishedMessage{ServerGameFinished, result, winnerName}
 }
 
 type ClientMessageType string

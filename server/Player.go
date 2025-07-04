@@ -233,6 +233,9 @@ func (p *PlayerInGame) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, pla
 	case LobbySendEliminations:
 		serverMsg := newEliminationMessage(lm.eliminatedPlayers)
 		player.WriteToClient(serverMsg, player.id)
+	case LobbySendGameOver:
+		serverMsg := newGameFinishedMessage(lm.result, lm.winnerName)
+		player.WriteToClient(serverMsg, player.id)
 	}
 }
 

@@ -105,6 +105,7 @@ export type ServerMessage =
     }
     | {
         type: "game-finished";
+        result: string;
         winner_name: string;
     };
 
