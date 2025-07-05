@@ -179,7 +179,7 @@ class InLobby implements GameState {
             let player = new Puck(msg.player.id, msg.player.position_x, msg.player.position_y)
             let opps: Puck[] = []
             msg.other_players.forEach((opp) => opps.push(new Puck(opp.id, opp.position_x, opp.position_y)))
-            let world = new World(msg.map, player, opps, this.game.socketEventBus)
+            let world = new World(msg.current_map, msg.next_map, player, opps, this.game.socketEventBus)
             this.game.currentState.initializeWorld(world);
         }
     }

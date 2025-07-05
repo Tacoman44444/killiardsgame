@@ -8,9 +8,58 @@ import (
 )
 
 type MapState struct {
-	Arena  [][]int `json:"arena"`
-	Width  int     `json:"width"`
-	Height int     `json:"height"`
+	Arena         [][]int `json:"arena"`
+	Width         int     `json:"width"`
+	Height        int     `json:"height"`
+	currentWidth  int
+	currentHeight int
+	topLeft       Vector2Int
+}
+
+func ShrinkArena(mapState *MapState) *MapState {
+	if mapState.currentWidth <= 4 || mapState.currentHeight <= 4 {
+		fmt.Println("Map too small to shrink further.")
+		return mapState
+	}
+
+	newWidth := mapState.currentWidth / 2
+	newHeight := mapState.currentHeight / 2
+
+	// Calculate the max starting point within current bounds
+	maxStartX := mapState.topLeft.X + (mapState.currentWidth - newWidth)
+	maxStartY := mapState.topLeft.Y + (mapState.currentHeight - newHeight)
+
+	// Seed randomness
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// Pick a random top-left corner for the new chunk
+	startX := r.Intn(maxStartX-mapState.topLeft.X+1) + mapState.topLeft.X
+	startY := r.Intn(maxStartY-mapState.topLeft.Y+1) + mapState.topLeft.Y
+
+	// New arena starts as all abyss
+	newArena := make([][]int, mapState.Height)
+	for y := 0; y < mapState.Height; y++ {
+		newArena[y] = make([]int, mapState.Width)
+		for x := 0; x < mapState.Width; x++ {
+			newArena[y][x] = TILETYPE_ABYSS
+		}
+	}
+
+	// Copy the shrunken area from the old map
+	for y := 0; y < newHeight; y++ {
+		for x := 0; x < newWidth; x++ {
+			newArena[startY+y][startX+x] = mapState.Arena[startY+y][startX+x]
+		}
+	}
+
+	return &MapState{
+		Arena:         newArena,
+		Width:         mapState.Width,
+		Height:        mapState.Height,
+		currentWidth:  newWidth,
+		currentHeight: newHeight,
+		topLeft:       Vector2Int{X: startX, Y: startY},
+	}
 }
 
 func (m *MapState) DebugLog() {
@@ -36,7 +85,7 @@ func (m *MapState) DebugLog() {
 const (
 	TILETYPE_WALKABLE       = 0
 	TILETYPE_ABYSS          = 1
-	TILE_SIZE               = 64
+	TILE_SIZE               = 32
 	mapArraySize            = 200
 	randomFillPercent       = 50
 	safeSpawnDistanceSquare = 36
@@ -158,7 +207,7 @@ func RandomFillMap(width int, height int, useCustomSeed bool, seedString string)
 		}
 	}
 
-	return &MapState{Arena: arena, Width: width, Height: height}
+	return &MapState{Arena: arena, Width: width, Height: height, currentWidth: width, currentHeight: height}
 
 }
 

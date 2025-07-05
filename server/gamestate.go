@@ -77,6 +77,7 @@ func WallStateRefToWallState(wallState []*WallState) []WallState {
 type GameState struct {
 	players   map[string]*PlayerIdentity
 	mapState  *tools.MapState
+	nextMap   *tools.MapState
 	walls     []*WallState
 	turnTimer time.Duration
 }
@@ -84,6 +85,7 @@ type GameState struct {
 func GetNewGame(players []string) *GameState {
 
 	mapState := tools.GenerateMap(200, 200, false, "")
+	nextMap := tools.ShrinkArena(mapState)
 	playerMap := make(map[string]*PlayerIdentity, len(players))
 	safeSpawns := tools.GenerateSafeSpawns(len(players), mapState)
 	for i := range players {
@@ -94,6 +96,7 @@ func GetNewGame(players []string) *GameState {
 	gamestate := GameState{
 		players:   playerMap,
 		mapState:  mapState,
+		nextMap:   nextMap,
 		walls:     walls,
 		turnTimer: time.Duration(TURN_TIMER_IN_SECONDS) * time.Second,
 	}

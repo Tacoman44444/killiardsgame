@@ -29,7 +29,8 @@ type LobbyMessage struct {
 	allPlayers        []PlayerIdentity
 	eliminatedPlayers []PlayerIdentity
 	walls             []WallState
-	mapState          tools.MapState
+	currentMap        tools.MapState
+	nextMap           tools.MapState
 	action            PlayerAction
 	result            string
 	winnerName        string
@@ -223,7 +224,8 @@ func (l LobbyWaitingForPlayers) HandlePlayerMessage(pm PlayerMessage, channelOpe
 					player:     *lobby.gameState.players[value.id],
 					allPlayers: PlayerMapToSlice(lobby.gameState.players),
 					walls:      WallStateRefToWallState(lobby.gameState.walls),
-					mapState:   *lobby.gameState.mapState,
+					currentMap: *lobby.gameState.mapState,
+					nextMap:    *lobby.gameState.nextMap,
 				}
 				value.readLobby <- msg
 			}
@@ -255,9 +257,9 @@ func (l LobbyInTurn) Enter(lobby *Lobby) {
 		player:     PlayerIdentity{},
 		allPlayers: nil,
 		walls:      nil,
-		mapState:   tools.MapState{},
 	}
 	player := lobby.queue.Current()
+	player.turnsPlayed++
 	fmt.Println("sending a turn start message to: ", player.id)
 	player.readLobby <- msg
 }
@@ -293,7 +295,6 @@ func (l LobbyInTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lob
 					player:     *lobby.gameState.players[value.id],
 					allPlayers: activePlayerIDs,
 					walls:      WallStateRefToWallState(lobby.gameState.walls),
-					mapState:   *lobby.gameState.mapState,
 				}
 				value.readLobby <- msg
 			}
@@ -314,7 +315,6 @@ func (l LobbyInTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lob
 					player:     *lobby.gameState.players[value.id],
 					allPlayers: PlayerMapToSlice(lobby.gameState.players),
 					walls:      WallStateRefToWallState(lobby.gameState.walls),
-					mapState:   *lobby.gameState.mapState,
 				}
 				value.readLobby <- msg
 			}
@@ -338,6 +338,40 @@ func (l LobbyProcessingTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen b
 		fmt.Println("simCount is: ", lobby.simCount, " and the no. of players are: ", lobby.queue.Size())
 		if lobby.simCount >= lobby.queue.Size() {
 			//eliminate the dead players...
+			//first we shrink the map if 4turns/8turns have happened
+			minTurns := lobby.queue.List()[0].turnsPlayed
+			for _, p := range lobby.queue.List() {
+				if p.turnsPlayed < minTurns {
+					minTurns = p.turnsPlayed
+				}
+			}
+
+			if minTurns == 1 {
+				fmt.Println("sending map update blyat")
+				nextMap := tools.ShrinkArena(lobby.gameState.nextMap)
+				lobby.gameState.mapState = lobby.gameState.nextMap
+				lobby.gameState.nextMap = nextMap
+				msg := LobbyMessage{
+					msgType:    LobbySendMapUpdate,
+					currentMap: *lobby.gameState.mapState,
+					nextMap:    *lobby.gameState.nextMap,
+				}
+				for _, value := range lobby.players {
+					value.readLobby <- msg
+				}
+			}
+			if minTurns == 4 {
+				//apply the shrinkmap
+				lobby.gameState.mapState = lobby.gameState.nextMap
+				msg := LobbyMessage{
+					msgType:    LobbySendMapUpdate,
+					currentMap: *lobby.gameState.mapState,
+					nextMap:    *lobby.gameState.nextMap,
+				}
+				for _, value := range lobby.players {
+					value.readLobby <- msg
+				}
+			}
 			eliminated := lobby.Eliminate()
 			if len(eliminated) != 0 {
 				//some1 dead
@@ -376,7 +410,6 @@ func (l LobbyProcessingTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen b
 				}
 				lobby.SetState(lobby.gameOver)
 			} else {
-				//we continue
 				lobby.SetState(lobby.inturn)
 			}
 

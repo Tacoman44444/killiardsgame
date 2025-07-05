@@ -12,22 +12,24 @@ export type MapGenData = {
     height: number,
 }
 
-const pixelSize = 64;
+const pixelSize = 32;
 
 export class Arena {
 
     mapData: MapState;
     walkableSprite: SpriteComponent;
+    decayedSprite: SpriteComponent;
     abyssSprite: SpriteComponent;
 
-    constructor(walkableSprite: SpriteComponent, abyssSprite: SpriteComponent, mapData: MapGenData) {
+    constructor(walkableSprite: SpriteComponent, decayedSprite: SpriteComponent, abyssSprite: SpriteComponent, mapData: MapState) {
         console.log("running map constructor");
         this.mapData = mapData;
         this.walkableSprite = walkableSprite;
+        this.decayedSprite = decayedSprite;
         this.abyssSprite = abyssSprite;
     }
 
-    render(ctx: CanvasRenderingContext2D, camera: Camera) {
+    render(ctx: CanvasRenderingContext2D, camera: Camera, nextArena: number[][]) {
         let frameXright = camera.follow.x + (camera.width / 2) + (pixelSize / 2);
         let frameXleft = camera.follow.x - (camera.width / 2) - (pixelSize / 2);
         let frameYup = camera.follow.y - (camera.height / 2) - (pixelSize / 2);
@@ -42,10 +44,12 @@ export class Arena {
                 if (isInFrame(tileCenterX, tileCenterY, frameXright, frameXleft, frameYdown, frameYup)) {
                     let x = (column * pixelSize) - (camera.follow.x - (camera.width / 2));
                     let y = (row * pixelSize) - (camera.follow.y - (camera.height / 2));
-                    if (this.mapData.arena[row][column] == 0) {
+                    if (this.mapData.arena[row][column] == 0 && nextArena[row][column] == 0) {
                     ctx.drawImage(this.walkableSprite.img, this.walkableSprite.sprite.xOffset, this.walkableSprite.sprite.yOffset, this.walkableSprite.sprite.width, this.walkableSprite.sprite.height, x, y, pixelSize, pixelSize)
                     } else if (this.mapData.arena[row][column] == 1) {
-                        ctx.drawImage(this.abyssSprite.img, this.abyssSprite.sprite.xOffset, this.abyssSprite.sprite.yOffset, this.abyssSprite.sprite.width, this.walkableSprite.sprite.height, x, y, pixelSize, pixelSize)
+                        ctx.drawImage(this.abyssSprite.img, this.abyssSprite.sprite.xOffset, this.abyssSprite.sprite.yOffset, this.abyssSprite.sprite.width, this.abyssSprite.sprite.height, x, y, pixelSize, pixelSize)
+                    } else if (this.mapData.arena[row][column] == 0 && nextArena[row][column] == 1) {
+                        ctx.drawImage(this.decayedSprite.img, this.decayedSprite.sprite.xOffset, this.decayedSprite.sprite.yOffset, this.decayedSprite.sprite.width, this.decayedSprite.sprite.height, x, y, pixelSize, pixelSize)
                     }
                 }
                 

@@ -44,7 +44,8 @@ func (m InvalidCodeMessage) isServerMessage() {}
 
 type GameStartMessage struct {
 	Type         ServerMessageType      `json:"type"`
-	Map          tools.MapState         `json:"map"`
+	CurrentMap   tools.MapState         `json:"current_map"`
+	NextMap      tools.MapState         `json:"next_map"`
 	Player       ClientPlayerIdentity   `json:"player"`
 	OtherPlayers []ClientPlayerIdentity `json:"other_players"`
 }
@@ -96,8 +97,9 @@ type WallUpdateMessage struct {
 func (m WallUpdateMessage) isServerMessage() {}
 
 type MapUpdateMessage struct {
-	Type ServerMessageType `json:"type"`
-	Map  tools.MapState    `json:"map"`
+	Type       ServerMessageType `json:"type"`
+	CurrentMap tools.MapState    `json:"current_map"`
+	NextMap    tools.MapState    `json:"next_map"`
 }
 
 func (m MapUpdateMessage) isServerMessage() {}
@@ -124,8 +126,8 @@ func newInvalidCodeMessage() InvalidCodeMessage {
 	return InvalidCodeMessage{ServerInvalidCode}
 }
 
-func newGameStartMessage(mapState tools.MapState, player PlayerIdentity, otherPlayers []PlayerIdentity) GameStartMessage {
-	return GameStartMessage{ServerGameStart, mapState, FormatPlayerId(player), FormatPlayerIds(otherPlayers)}
+func newGameStartMessage(currentMap tools.MapState, nextMap tools.MapState, player PlayerIdentity, otherPlayers []PlayerIdentity) GameStartMessage {
+	return GameStartMessage{ServerGameStart, currentMap, nextMap, FormatPlayerId(player), FormatPlayerIds(otherPlayers)}
 }
 
 func newTurnStartMessage(playerID string) TurnStartMessage {
@@ -152,8 +154,8 @@ func newWallUpdateMessage(walls []WallState) WallUpdateMessage {
 	return WallUpdateMessage{ServerWallUpdate, walls}
 }
 
-func newMapUpdateMessage(mapState tools.MapState) MapUpdateMessage {
-	return MapUpdateMessage{ServerMapUpdate, mapState}
+func newMapUpdateMessage(currentMap tools.MapState, nextMap tools.MapState) MapUpdateMessage {
+	return MapUpdateMessage{ServerMapUpdate, currentMap, nextMap}
 }
 
 func newGameFinishedMessage(result string, winnerName string) GameFinishedMessage {

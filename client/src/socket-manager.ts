@@ -70,7 +70,8 @@ export type ServerMessage =
     }
     | {
         type: "game-start";
-        map: MapState;
+        current_map: MapState;
+        next_map: MapState
         player: PlayerIdentity;
         other_players: PlayerIdentity[];
     }
@@ -101,7 +102,8 @@ export type ServerMessage =
     }
     | {
         type: "map-update"; 
-        map: MapState;
+        current_map: MapState;
+        next_map: MapState;
     }
     | {
         type: "game-finished";

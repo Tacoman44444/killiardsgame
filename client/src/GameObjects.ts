@@ -38,7 +38,7 @@ export class Puck implements GameObject {
             this.puckSprite.sprite.xOffset, this.puckSprite.sprite.yOffset,
             this.puckSprite.sprite.width, this.puckSprite.sprite.height,
             x, y,
-            64, 64
+            32, 32
         );
     }
 }

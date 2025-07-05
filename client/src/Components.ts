@@ -10,11 +10,12 @@ export interface SpriteDef {
 }
 
 const SPRITE_MAP: Record <string, SpriteDef> = {
-    floorTile : { src: "block_sheet", xOffset: 256, yOffset: 0, width: 16, height: 16 },
-    abyssTile : { src: "block_sheet", xOffset: 272, yOffset: 0, width: 16, height: 16 },
-    wallTile  : { src: "block_sheet", xOffset: 0, yOffset: 0, width: 16, height: 16 },
-    brickTile : { src: "block_sheet", xOffset: 288, yOffset: 0, width: 16, height: 16 },
-    puck      : { src: "puck", xOffset: 0, yOffset: 0, width: 128, height: 128 },
+    floorTile :  { src: "texture_stone", xOffset: 0, yOffset: 0, width: 1024, height: 1024 },
+    decayedTile: { src: "texture_stone_dark", xOffset: 0, yOffset: 0, width: 1024, height: 1024 },
+    abyssTile :  { src: "abyss_texture", xOffset: 0, yOffset: 0, width: 16, height: 16 },
+    wallTile  :  { src: "block_sheet", xOffset: 0, yOffset: 0, width: 16, height: 16 },
+    brickTile :  { src: "block_sheet", xOffset: 288, yOffset: 0, width: 16, height: 16 },
+    puck      :  { src: "puck", xOffset: 0, yOffset: 0, width: 128, height: 128 },
     createroom_button: { src: "createroom_button", xOffset: 0, yOffset: 0, width: 68, height: 16 },
 }
 

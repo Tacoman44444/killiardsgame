@@ -155,7 +155,7 @@ func (p *PlayerInLobby) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, pl
 				otherPlayers = append(otherPlayers, lm.allPlayers[i])
 			}
 		}
-		msg := newGameStartMessage(lm.mapState, lm.player, otherPlayers)
+		msg := newGameStartMessage(lm.currentMap, lm.nextMap, lm.player, otherPlayers)
 		player.WriteToClient(msg, player.id)
 		player.SetState(&PlayerInGame{})
 	}
@@ -219,7 +219,7 @@ func (p *PlayerInGame) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, pla
 		serverMsg := newWallUpdateMessage(lm.walls)
 		player.WriteToClient(serverMsg, player.id)
 	case LobbySendMapUpdate:
-		serverMsg := newMapUpdateMessage(lm.mapState)
+		serverMsg := newMapUpdateMessage(lm.currentMap, lm.nextMap)
 		player.WriteToClient(serverMsg, player.id)
 	case LobbySendTurnStart:
 		serverMsg := newTurnStartMessage(lm.player.id)
@@ -245,6 +245,7 @@ func (p *PlayerInGame) Exit() {}
 
 type Player struct {
 	id           string
+	turnsPlayed  int
 	conn         *websocket.Conn
 	socketClosed bool
 	state        PlayerState
@@ -267,6 +268,7 @@ func (p *Player) SetState(newState PlayerState) {
 func GetNewPlayer(conn *websocket.Conn, hub *Hub) *Player {
 	player := &Player{
 		id:           randomAlphanumericString(),
+		turnsPlayed:  0,
 		conn:         conn,
 		socketClosed: false,
 		clientMsg:    make(chan ClientMessage),

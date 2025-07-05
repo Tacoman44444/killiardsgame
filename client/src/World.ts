@@ -72,7 +72,7 @@ class ActiveState implements WorldState {
     }
 
     render(ctx: CanvasRenderingContext2D) {
-        this.world.arena.render(ctx, this.world.camera);
+        this.world.currentArena.render(ctx, this.world.camera, this.world.nextArenalist);
 
         this.world.walls.forEach((wall) => wall.render(ctx, this.world.camera))
 
@@ -176,7 +176,7 @@ class ProcessingState implements WorldState {
     }
 
     render(ctx: CanvasRenderingContext2D) {
-        this.world.arena.render(ctx, this.world.camera);
+        this.world.currentArena.render(ctx, this.world.camera, this.world.nextArenalist);
 
         this.world.walls.forEach((wall) => wall.render(ctx, this.world.camera))
 
@@ -276,7 +276,9 @@ class ProcessingState implements WorldState {
 
     onMapUpdate(msg: ServerMessage) {
         if (msg.type == "map-update") {
-
+            console.log("recieved a map update")
+            this.world.currentArena = new Arena(new SpriteComponent("floorTile"), new SpriteComponent("decayedTile"), new SpriteComponent("abyssTile"), msg.current_map)
+            this.world.nextArenalist = msg.next_map.arena
         }
     }
 
@@ -321,7 +323,8 @@ export class World {
     isDead: boolean = false;
     spectatingIndex: number = -1;
     opps: Puck[] = [];
-    arena: Arena;
+    currentArena: Arena;
+    nextArenalist: number[][];
     walls: Wall[] = [];
     camera: Camera;
     states: {
@@ -333,10 +336,11 @@ export class World {
     simInProgress: boolean = false;
     bufferedEntityUpdate: ServerMessage | null = null;
 
-    constructor(mapData: MapGenData, player: Puck, opps: Puck[], socketEventBus: SocketEventManager) {
+    constructor(currentData: MapGenData, nextData: MapGenData, player: Puck, opps: Puck[], socketEventBus: SocketEventManager) {
         this.player = player;
         this.opps = opps
-        this.arena = new Arena(new SpriteComponent("floorTile"), new SpriteComponent("abyssTile"), mapData);
+        this.currentArena = new Arena(new SpriteComponent("floorTile"), new SpriteComponent("decayedTile"), new SpriteComponent("abyssTile"), currentData);
+        this.nextArenalist = nextData.arena
         this.camera = new Camera(player.circle.center, 1600, 1200);
         this.states = {
             activeState: new ActiveState(this),
