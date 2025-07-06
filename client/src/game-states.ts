@@ -2,6 +2,7 @@ import { SpriteComponent } from "./Components.js"
 import { Puck } from "./GameObjects.js"
 import { ServerMessage } from "./socket-manager.js"
 import { SocketEventManager } from "./socketevent-manager.js"
+import { SoundManager } from "./sound-manager.js"
 import { Board, BoardEventManager, Img } from "./ui.js"
 import { POWER_LEVEL, World } from "./World.js"
 
@@ -202,7 +203,7 @@ class InLobby implements GameState {
             let player = new Puck(msg.player.id, msg.player.username, msg.player.position_x, msg.player.position_y)
             let opps: Puck[] = []
             msg.other_players.forEach((opp) => opps.push(new Puck(opp.id, opp.username, opp.position_x, opp.position_y)))
-            let world = new World(msg.current_map, msg.next_map, player, opps, this.game.socketEventBus, this.game.states.inGame.boardEventManager)
+            let world = new World(msg.current_map, msg.next_map, player, opps, this.game.socketEventBus, this.game.states.inGame.boardEventManager, this.game.soundManager)
             this.game.currentState.initializeWorld(world);
         }
     }
@@ -333,6 +334,7 @@ export class Game {
     ctx: CanvasRenderingContext2D;
     currentState: GameState;
     socketEventBus: SocketEventManager;
+    soundManager: SoundManager;
     code: string;
     states: {
         mainMenuState: GameState;
@@ -345,6 +347,7 @@ export class Game {
         this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
         this.ctx = this.canvas.getContext('2d')!;
         this.socketEventBus = socketEventBus;
+        this.soundManager = new SoundManager()
         this.states = {
             mainMenuState: new MainMenuState(this),
             requestedForLobby: new RequestedForLobby(this),

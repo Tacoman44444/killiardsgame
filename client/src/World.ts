@@ -9,6 +9,7 @@ import { Puck, Wall } from "./GameObjects.js";
 import { Circle, distance, Rect, ShotData, startPhysicsSimulation, Vector2 } from "./physics.js";
 import { PlayerAction, ServerMessage, WallState } from "./socket-manager.js";
 import { SocketEventManager } from "./socketevent-manager.js";
+import { SoundManager } from "./sound-manager.js";
 import { Board, BoardEventManager } from "./ui.js";
 
 const radius = 16;
@@ -147,6 +148,7 @@ class ActiveState implements WorldState {
 
     sendMove(action: PlayerAction) {
         //tell socket manager to send move
+        this.world.soundManager.play("shoot")
         console.log("shot vector:", action.direction_horizontal, action.direction_vertical);
 
         console.log("sending a move to the server");
@@ -319,6 +321,7 @@ class ProcessingState implements WorldState {
 
     onTurnStart(msg: ServerMessage) {
         console.log("recieved a turn start message")
+        this.world.soundManager.play("turnactive")
         this.world.SetState("active-state")
     }
 
@@ -345,6 +348,7 @@ class ProcessingState implements WorldState {
             console.log("recieved a elimination message on the server")
             msg.eliminated_players.forEach((elimed_player) => {
                 if (elimed_player.id == this.world.player.id) {
+                    this.world.soundManager.play("dead")
                     //shiiii guess we're dead
                     console.log("shiiii gues we're dead")
                     //IMPLEMENT DYING MAN
@@ -392,10 +396,11 @@ export class World {
     currentState: WorldState;
     socketEventBus: SocketEventManager;
     boardEventManager: BoardEventManager;
+    soundManager: SoundManager
     simInProgress: boolean = false;
     bufferedEntityUpdate: ServerMessage | null = null;
 
-    constructor(currentData: MapGenData, nextData: MapGenData, player: Puck, opps: Puck[], socketEventBus: SocketEventManager, boardEventManager: BoardEventManager) {
+    constructor(currentData: MapGenData, nextData: MapGenData, player: Puck, opps: Puck[], socketEventBus: SocketEventManager, boardEventManager: BoardEventManager, soundManager: SoundManager) {
         this.player = player;
         this.opps = opps
         this.currentArena = new Arena(new SpriteComponent("floorTile"), new SpriteComponent("decayedTile"), new SpriteComponent("abyssTile"), currentData);
@@ -408,6 +413,7 @@ export class World {
         this.currentState = this.states.processingState;
         this.socketEventBus = socketEventBus;
         this.boardEventManager = boardEventManager;
+        this.soundManager = soundManager;
         this.currentState.Enter();
         this.states.activeState.Initialize();
         this.states.processingState.Initialize();
