@@ -4,6 +4,7 @@
 
 import { Camera } from "./camera.js";
 import { SpriteComponent } from "./Components.js";
+import { Vector2 } from "./physics.js";
 import { MapState } from "./socket-manager.js";
 
 export type MapGenData = {
@@ -57,18 +58,29 @@ export class Arena {
         }
     }
 
-    renderMiniMap(ctx: CanvasRenderingContext2D, x: number, y: number, size: number = 200, nextArena: number[][]) {
+    renderMiniMap(
+        ctx: CanvasRenderingContext2D,
+        x: number,
+        y: number,
+        size: number = 200,
+        nextArena: number[][],
+        playerPos: Vector2
+    ) {
         const tileWidth = size / this.mapData.width;
         const tileHeight = size / this.mapData.height;
 
+        const playerTileX = Math.floor(playerPos.x / pixelSize); // assuming 64px tile size
+        const playerTileY = Math.floor(playerPos.y / pixelSize);
+
+        // Draw arena tiles
         for (let row = 0; row < this.mapData.height; row++) {
             for (let col = 0; col < this.mapData.width; col++) {
                 const curr = this.mapData.arena[row][col];
                 const next = nextArena[row][col];
 
-                let color = "#000000"; // default: abyss
+                let color = "#000000"; // abyss
                 if (curr === 0 && next === 0) color = "#FFFFFF";      // walkable
-                else if (curr === 0 && next === 1) color = "#DDDDDD"; // decaying (lighter gray)
+                else if (curr === 0 && next === 1) color = "#AAAAAA"; // decaying
 
                 ctx.fillStyle = color;
                 ctx.fillRect(
@@ -80,11 +92,29 @@ export class Arena {
             }
         }
 
-        // Optional border
+        // Draw the player in red — only if inside bounds
+        if (
+            playerTileX >= 0 && playerTileX < this.mapData.width &&
+            playerTileY >= 0 && playerTileY < this.mapData.height
+        ) {
+            const centerX = x + playerTileX * tileWidth + tileWidth / 2;
+            const centerY = y + playerTileY * tileHeight + tileHeight / 2;
+            const radius = Math.min(tileWidth, tileHeight) * 5; // bigger dot
+
+            ctx.fillStyle = "#FF0000";
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            console.log("player OUT OF BOUNDS")
+        }
+
+        // Draw border
         ctx.strokeStyle = "#333";
         ctx.lineWidth = 2;
         ctx.strokeRect(x, y, size, size);
     }
+
 
 }
 

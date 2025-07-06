@@ -4,6 +4,7 @@ import { GameInput } from "./game-states.js";
 export class Board {
 
     buttons: Button[] = [];
+    textButtons: TextButton[] = [];
     inputBoxes: InputTextBox[] = [];
     displayBoxes: DisplayTextBox[] = []
     images: Img[] = []
@@ -11,6 +12,11 @@ export class Board {
     addButton(name: string, x: number, y: number, width: number, height: number, sprite: SpriteComponent, onClick: () => void, visible: boolean) {
         const btn = new Button(name, x, y, width, height, sprite, onClick, visible)
         this.buttons.push(btn)
+    }
+
+    addTextButton(name: string, x: number, y: number, width: number, height: number, text: string, onClick: () => void, visible: boolean, fontSize: number) {
+        const btn = new TextButton(name, x, y, width, height, text, onClick, visible, fontSize)
+        this.textButtons.push(btn)
     }
 
     addImage(name: string, x: number, y: number, width: number, height: number, sprite: SpriteComponent, visible: boolean) {
@@ -30,12 +36,14 @@ export class Board {
 
 
     processInput(input: any) {
+        this.textButtons.forEach((btn) => btn.processInput(input));
         this.buttons.forEach((btn) => btn.processInput(input));
         this.inputBoxes.forEach((box) => box.processInput(input));
     }
 
     render(ctx: CanvasRenderingContext2D) : void {
         this.buttons.forEach((btn) => btn.render(ctx));
+        this.textButtons.forEach((btn) => btn.render(ctx))
         this.inputBoxes.forEach((box) => box.render(ctx));
         this.displayBoxes.forEach((box) => box.render(ctx));
         this.images.forEach((img) => img.render(ctx))
@@ -80,7 +88,7 @@ export class BoardEventManager {
     }
 }
 
-type uiElement = Button | InputTextBox | DisplayTextBox;
+type uiElement = Button | TextButton | InputTextBox | DisplayTextBox;
 
 export class Img {
     name: string;
@@ -147,6 +155,71 @@ class Button {
     }
 };
 
+class TextButton {
+    name: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    text: string;
+    onClick: () => void;
+    visible: boolean;
+    fontSize: number;
+    fontFamily: string;
+
+    constructor(
+        name: string,
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        text: string,
+        onClick: () => void,
+        visible: boolean,
+        fontSize: number = 24,
+        fontFamily: string = "'Orbitron'"
+    ) {
+        this.name = name;
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.text = text;
+        this.onClick = onClick;
+        this.visible = visible;
+        this.fontSize = fontSize;
+        this.fontFamily = fontFamily;
+    }
+
+    processInput(input: GameInput) {
+        if (this.visible && input.type === "mouseup") {
+            if (contains(this, input.cameraX, input.cameraY)) {
+                this.onClick();
+            }
+        }
+    }
+
+    render(ctx: CanvasRenderingContext2D) {
+        if (!this.visible) return;
+
+        // Background
+        ctx.fillStyle = "#333";
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        // Border
+        ctx.strokeStyle = "#999";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+        // Text
+        ctx.fillStyle = "white";
+        ctx.font = `${this.fontSize}px ${this.fontFamily}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(this.text, this.x + this.width / 2, this.y + this.height / 2);
+    }
+}
+
 class DisplayTextBox {
     name: string;
     x: number;
@@ -179,7 +252,7 @@ class DisplayTextBox {
         if (this.visible) {
 
         ctx.fillStyle = "#999999"; // text color
-        ctx.font = `${this.fontSize}px Arial`;   // dynamic font size
+        ctx.font = `${this.fontSize}px 'Orbitron'`;   // dynamic font size
         ctx.textBaseline = "top";
 
         // Word-wrap logic
@@ -231,37 +304,56 @@ class InputTextBox {
 
     processInput(input: any) {
         if (input.type == "mouseup") {
-            if (contains(this, input.cameraX, input.cameraY)) {
-                this.focused = true;
-            } else {
-                this.focused = false;
-            }
-        } else if (input.type == "keydown") {
-            if (this.focused) {
-                if (isAlphanumeric(input.event.key) && this.text.length < this.maxLength) {
-                    this.text += input.event.key;
-                }
+            this.focused = contains(this, input.cameraX, input.cameraY);
+        } else if (input.type == "keydown" && this.focused) {
+            const key = input.event.key;
+
+            if (key === "Backspace") {
+                this.text = this.text.slice(0, -1); // remove last character
+            } else if (isAlphanumeric(key) && this.text.length < this.maxLength) {
+                this.text += key;
             }
         }
     }
 
     render(ctx: CanvasRenderingContext2D) {
+        const padding = 10;
+        const centerX = this.x + this.width / 2;
+        const centerY = this.y + this.height / 2;
+
+        // Draw background
         ctx.fillStyle = this.focused ? "#222" : "#444";
         ctx.fillRect(this.x, this.y, this.width, this.height);
 
-        ctx.strokeStyle = this.focused ? "00f" : "#888";
+        // Draw border
+        ctx.strokeStyle = this.focused ? "#00f" : "#888";
         ctx.lineWidth = 2;
         ctx.strokeRect(this.x, this.y, this.width, this.height);
 
-        ctx.fillStyle = "white"
-        ctx.font = "18px sans-serif";
+        // Set font
+        ctx.fillStyle = "white";
+        ctx.font = "24px 'Orbitron'";
         ctx.textBaseline = "middle";
         ctx.textAlign = "left";
-        ctx.fillText(this.text, this.x + 5, this.y + this.height / 2);
 
+        // Measure and clip text if needed
+        let textToRender = this.text;
+        let measuredWidth = ctx.measureText(textToRender).width;
+
+        while (measuredWidth > this.width - 2 * padding && textToRender.length > 0) {
+            textToRender = textToRender.slice(1); // trim from front
+            measuredWidth = ctx.measureText(textToRender).width;
+        }
+
+        const textX = this.x + padding;
+        const textY = centerY;
+
+        // Draw the text
+        ctx.fillText(textToRender, textX, textY);
+
+        // Draw caret if focused
         if (this.focused && Date.now() % 1000 < 500) {
-            const textWidth = ctx.measureText(this.text).width;
-            const caretX = this.x + 5 + textWidth;
+            const caretX = textX + measuredWidth;
             ctx.beginPath();
             ctx.moveTo(caretX, this.y + 5);
             ctx.lineTo(caretX, this.y + this.height - 5);

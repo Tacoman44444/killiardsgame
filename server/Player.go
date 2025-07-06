@@ -63,7 +63,7 @@ func (p *PlayerInHub) HandleClientMessage(cm ClientMessage, channelOpen bool, pl
 			senderID: player.id,
 			msg:      cm,
 		}
-		player.username = cm.Name
+		player.username = cm.Username
 		player.hub.readPlayer <- msg
 		player.SetState(&PlayerRequestedForLobby{})
 	case ClientJoinRoom:
@@ -74,7 +74,7 @@ func (p *PlayerInHub) HandleClientMessage(cm ClientMessage, channelOpen bool, pl
 			senderID: player.id,
 			msg:      cm,
 		}
-		player.username = cm.Name
+		player.username = cm.Username
 		player.hub.readPlayer <- msg
 		player.SetState(&PlayerRequestedForLobby{})
 	}

@@ -53,6 +53,13 @@ class ActiveState implements WorldState {
 
     processInput(input: GameInput) {
         //here, we will have to process the input shot and wall placements
+        if (input.type == "keydown" && input.event.code == "ShiftLeft") {
+            this.world.showMinimap = true
+        }
+        if (input.type == "keyup" && input.event.code == "ShiftLeft") {
+            this.world.showMinimap = false
+        }
+
         if (input.type == "mousemove") {
             if (this.leftClickPressed) {
                 let currentPosVector = new Vector2(input.cameraX, input.cameraY)
@@ -118,6 +125,10 @@ class ActiveState implements WorldState {
         this.world.walls.forEach((wall) => wall.render(ctx, this.world.camera))
 
         this.world.opps.forEach((opp) => opp.render(ctx, this.world.camera))
+
+        if (this.world.showMinimap) {
+            this.world.currentArena.renderMiniMap(ctx, 1300, 100, 200, this.world.nextArenalist, this.world.player.circle.center);
+        }
 
         if (!this.world.isDead) {
             this.world.player.render(ctx, this.world.camera)
@@ -222,6 +233,13 @@ class ProcessingState implements WorldState {
     }
 
     processInput(input: GameInput) {
+        if (input.type == "keydown" && input.event.code == "ShiftLeft") {
+            this.world.showMinimap = true
+        }
+        if (input.type == "keyup" && input.event.code == "ShiftLeft") {
+            this.world.showMinimap = false
+        }
+
         if (this.world.isDead) {
             if (input.type == "keydown" && input.event.code == "Space") {
             this.world.spectatingIndex++;
@@ -240,6 +258,10 @@ class ProcessingState implements WorldState {
         this.world.walls.forEach((wall) => wall.render(ctx, this.world.camera))
 
         this.world.opps.forEach((opp) => opp.render(ctx, this.world.camera))
+
+        if (this.world.showMinimap) {
+            this.world.currentArena.renderMiniMap(ctx, 1300, 100, 200, this.world.nextArenalist, this.world.player.circle.center);
+        }
 
         if (!this.world.isDead) {
             this.world.player.render(ctx, this.world.camera)
@@ -369,6 +391,11 @@ class ProcessingState implements WorldState {
             console.log("woo game over")
             console.log("result: ", msg.result)
             console.log("winner: ", msg.winner_name)
+            if (msg.result == "win") {
+                this.world.boardEventManager.onEvent("winner", msg.winner_name)
+            } else if (msg.result == "draw") { 
+                this.world.boardEventManager.onEvent("draw")
+            }
             if (msg.result == "win" && !this.world.isDead) {
                 console.log("YOU WIN")
             } else if (msg.result == "win" && this.world.isDead) {
@@ -399,6 +426,7 @@ export class World {
     soundManager: SoundManager
     simInProgress: boolean = false;
     bufferedEntityUpdate: ServerMessage | null = null;
+    showMinimap: boolean = false;
 
     constructor(currentData: MapGenData, nextData: MapGenData, player: Puck, opps: Puck[], socketEventBus: SocketEventManager, boardEventManager: BoardEventManager, soundManager: SoundManager) {
         this.player = player;

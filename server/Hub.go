@@ -86,6 +86,7 @@ func (h *Hub) Run() {
 					lobby:   lobby,
 				}
 				fmt.Println("informing player that a lobby has been created")
+
 				plrmsg.player.readHub <- hubmsg
 			}
 		case lbmsg := <-h.readLobby:

@@ -47,11 +47,11 @@ class MainMenuState implements GameState {
     }
 
     initializeBoard() {
-        this.board.addInputTextBox("username", 650, 400, 300, 50, 20);
-        this.board.addInputTextBox("code", 750, 500, 100, 25, 6);
-        this.board.addButton("create", 300, 700, 204, 48, new SpriteComponent("createroom_button"), () => this.sendCreateRoomRequest(), true);
-        this.board.addButton("join", 1100, 700, 204, 48, new SpriteComponent("createroom_button"), () => this.sendJoinRequest(), true)
-        this.board.addDisplayTextBox("test", 20, 20, 100, 100, "bigbchungus", 48, true)
+        this.board.addInputTextBox("username", 650, 400, 300, 50, 13);
+        this.board.addInputTextBox("code", 725, 500, 150, 40, 6);
+        this.board.addTextButton("create", 290, 700, 224, 48, "CREATE ROOM", () => this.sendCreateRoomRequest(), true, 24);
+        this.board.addTextButton("join", 1100, 700, 204, 48, "JOIN ROOM", () => this.sendJoinRequest(), true, 24)
+        this.board.addDisplayTextBox("test", 400, 100, 100, 100, "KILLIARDS", 128, true)
 
     }
 
@@ -145,17 +145,19 @@ class RequestedForLobby implements GameState {
     }
 
     onRoomCreated(msg: ServerMessage) {
-        this.game.currentState = this.game.states.inLobby;
         if (msg.type == "room-created") {
-            this.game.code = msg.code;
+            this.game.currentState = this.game.states.inLobby; 
+            this.game.currentState.boardEventManager.onEvent("roomcodeupdate", msg.code); 
         }
+        
     }
 
     onRoomJoined(msg: ServerMessage) {
-        this.game.currentState = this.game.states.inLobby;
         if (msg.type == "room-joined") {
-            this.game.code = msg.code;
+            this.game.currentState = this.game.states.inLobby;
+            this.game.currentState.boardEventManager.onEvent("roomcodeupdate", msg.code);
         }
+
     }
 }
 
@@ -175,8 +177,13 @@ class InLobby implements GameState {
     }
 
     initializeBoard() {
-        this.board.addDisplayTextBox("code", 20, 20, 100, 50, this.game.code, 48, true)
-        this.board.addButton("start", 20, 700, 65, 16, new SpriteComponent("createroom_button"), () => this.sendGameStart(), true)
+        console.log("the code is: ", this.game.code)
+        this.board.addDisplayTextBox("code", 150, 20, 100, 50, this.game.code, 48, true)
+        this.board.addTextButton("start", 750, 700, 250, 60, "START", () => this.sendGameStart(), true, 48)
+
+        this.boardEventManager.addEvent("roomcodeupdate", (code: string) => {
+            this.boardEventManager.board.getDisplayTextBox("code")?.UpdateText(code)
+        })
     }
 
     initializeWorld(world: World): void {}
@@ -231,14 +238,34 @@ class InGame implements GameState {
 
     initializeBoard() {
         this.board.addDisplayTextBox("spectating", 20, 20, 200, 100, "", 48, false);
-        this.board.addDisplayTextBox("turnactive", 100, 100, 1000, 200, "YOUR TURN -- SHOOT", 48, false);
+        this.board.addDisplayTextBox("turnactive", 400, 100, 1000, 200, "YOUR TURN -- SHOOT", 48, false);
         this.board.addImage("1", 40, 1060, 50, 100, new SpriteComponent("power_level_1"), false);
         this.board.addImage("2", 40, 950, 50, 100, new SpriteComponent("power_level_2"), false);
         this.board.addImage("3", 40, 840, 50, 100, new SpriteComponent("power_level_3"), false);
         this.board.addImage("4", 40, 730, 50, 100, new SpriteComponent("power_level_4"), false);
         this.board.addImage("5", 40, 620, 50, 100, new SpriteComponent("power_level_5"), false);
+        this.board.addDisplayTextBox("gameover", 800, 400, 1200, 400, "GAME OVER", 98, false)
+        this.board.addDisplayTextBox("win", 800, 700, 200, 40, "", 48, false)
+        this.board.addDisplayTextBox("draw", 200, 100, 200, 40, "DRAW", 48, false)
 
 
+        this.boardEventManager.addEvent("winner", (name: string) => {
+            let gameoverBox = this.boardEventManager.board.getDisplayTextBox("gameover")
+            if (gameoverBox) {
+                gameoverBox.visible = true;
+            }
+            let winBox = this.boardEventManager.board.getDisplayTextBox("win")
+            if (winBox) {
+                winBox.visible = true;
+                winBox.UpdateText("WINNER: " + name)
+            }
+        })
+        this.boardEventManager.addEvent("draw", () => {
+            let drawBox = this.boardEventManager.board.getDisplayTextBox("draw")
+            if (drawBox) {
+                drawBox.visible = true;
+            }
+        })
         this.boardEventManager.addEvent("spectating", (username: string) => {
             let box = this.board.getDisplayTextBox("spectating");
             if (box) {
@@ -324,7 +351,9 @@ class InGame implements GameState {
 
     //handle them socket events and send them messages
 
-    onGameOver(msg: ServerMessage) {}
+    onGameOver(msg: ServerMessage) {
+
+    }
 
 }
 

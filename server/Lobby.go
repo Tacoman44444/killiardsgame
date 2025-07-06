@@ -348,7 +348,7 @@ func (l LobbyProcessingTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen b
 				}
 			}
 
-			if minTurns == 1 {
+			if minTurns == 3 {
 				fmt.Println("sending map update blyat")
 				nextMap := tools.ShrinkArena(lobby.gameState.nextMap)
 				lobby.gameState.mapState = lobby.gameState.nextMap
@@ -362,7 +362,7 @@ func (l LobbyProcessingTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen b
 					value.readLobby <- msg
 				}
 			}
-			if minTurns == 4 {
+			if minTurns == 5 {
 				//apply the shrinkmap
 				lobby.gameState.mapState = lobby.gameState.nextMap
 				msg := LobbyMessage{
@@ -405,7 +405,7 @@ func (l LobbyProcessingTurn) HandlePlayerMessage(pm PlayerMessage, channelOpen b
 				msg := LobbyMessage{
 					msgType:    LobbySendGameOver,
 					result:     "win",
-					winnerName: lobby.queue.Current().id,
+					winnerName: lobby.queue.Current().username,
 				}
 				for _, value := range lobby.players {
 					value.readLobby <- msg
