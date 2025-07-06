@@ -31,6 +31,10 @@ export class Vector2 {
   }
 }
 
+export function distance(a: Vector2, b: Vector2): number {
+  return a.subtract(b).length();
+}
+
 export class Circle {
   velocity = new Vector2(0, 0);
 

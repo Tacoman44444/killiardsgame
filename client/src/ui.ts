@@ -6,10 +6,16 @@ export class Board {
     buttons: Button[] = [];
     inputBoxes: InputTextBox[] = [];
     displayBoxes: DisplayTextBox[] = []
+    images: Img[] = []
 
     addButton(name: string, x: number, y: number, width: number, height: number, sprite: SpriteComponent, onClick: () => void, visible: boolean) {
         const btn = new Button(name, x, y, width, height, sprite, onClick, visible)
         this.buttons.push(btn)
+    }
+
+    addImage(name: string, x: number, y: number, width: number, height: number, sprite: SpriteComponent, visible: boolean) {
+        const img = new Img(name, x, y, width, height, sprite, visible)
+        this.images.push(img)
     }
 
     addDisplayTextBox(name: string, x: number, y: number, width: number, height: number, text: string, fontSize: number, visible: boolean) {
@@ -22,6 +28,7 @@ export class Board {
         this.inputBoxes.push(box);
     }
 
+
     processInput(input: any) {
         this.buttons.forEach((btn) => btn.processInput(input));
         this.inputBoxes.forEach((box) => box.processInput(input));
@@ -31,6 +38,7 @@ export class Board {
         this.buttons.forEach((btn) => btn.render(ctx));
         this.inputBoxes.forEach((box) => box.render(ctx));
         this.displayBoxes.forEach((box) => box.render(ctx));
+        this.images.forEach((img) => img.render(ctx))
     }
 
     updateDisplayTextBox(boxName: string, newText: string) {
@@ -74,6 +82,32 @@ export class BoardEventManager {
 
 type uiElement = Button | InputTextBox | DisplayTextBox;
 
+export class Img {
+    name: string;
+    x: number;
+    y: number;
+    width: number; 
+    height: number;
+    sprite: SpriteComponent;
+    visible: boolean;
+
+    constructor(name: string, x: number, y: number, width: number, height: number, sprite: SpriteComponent, visible: boolean) {
+        this.name = name;
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.sprite = sprite;
+        this.visible = visible
+    }
+
+    render(ctx: CanvasRenderingContext2D) {
+        if (this.visible) {
+            ctx.drawImage(this.sprite.img, this.sprite.sprite.xOffset, this.sprite.sprite.yOffset, this.sprite.sprite.width, this.sprite.sprite.height, this.x, this.y, this.width, this.height)
+        }
+    }
+}
+
 class Button {
     name:   string;
     x:      number;
@@ -92,7 +126,7 @@ class Button {
         this.height = height;
         this.sprite = sprite
         this.onClick = onClick;
-        this.visible = true;
+        this.visible = visible;
     }
 
     processInput(input: GameInput) {

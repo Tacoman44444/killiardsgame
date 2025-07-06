@@ -2,8 +2,8 @@ import { SpriteComponent } from "./Components.js"
 import { Puck } from "./GameObjects.js"
 import { ServerMessage } from "./socket-manager.js"
 import { SocketEventManager } from "./socketevent-manager.js"
-import { Board, BoardEventManager } from "./ui.js"
-import { World } from "./World.js"
+import { Board, BoardEventManager, Img } from "./ui.js"
+import { POWER_LEVEL, World } from "./World.js"
 
 
 interface GameState {
@@ -231,6 +231,13 @@ class InGame implements GameState {
     initializeBoard() {
         this.board.addDisplayTextBox("spectating", 20, 20, 200, 100, "", 48, false);
         this.board.addDisplayTextBox("turnactive", 100, 100, 1000, 200, "YOUR TURN -- SHOOT", 48, false);
+        this.board.addImage("1", 40, 1060, 50, 100, new SpriteComponent("power_level_1"), false);
+        this.board.addImage("2", 40, 950, 50, 100, new SpriteComponent("power_level_2"), false);
+        this.board.addImage("3", 40, 840, 50, 100, new SpriteComponent("power_level_3"), false);
+        this.board.addImage("4", 40, 730, 50, 100, new SpriteComponent("power_level_4"), false);
+        this.board.addImage("5", 40, 620, 50, 100, new SpriteComponent("power_level_5"), false);
+
+
         this.boardEventManager.addEvent("spectating", (username: string) => {
             let box = this.board.getDisplayTextBox("spectating");
             if (box) {
@@ -268,6 +275,28 @@ class InGame implements GameState {
                 box.visible = false;
             } else {
                 console.log("WHERE IS THE BOX")
+            }
+        })
+        this.boardEventManager.addEvent("showpowerlevel", (powerLevel: POWER_LEVEL) => {
+            let images: Img[] = []
+            for (const img of this.board.images) {
+                if (!isNaN(Number(img.name)) && img.name.trim() !== "") {
+                    const number = Number(img.name);
+                    if (number <= powerLevel) {
+                        img.visible = true;
+                    } else {
+                        img.visible = false;
+                    }
+                }
+            }
+            
+        })
+        this.boardEventManager.addEvent("hidepowerlevel", () => {
+            let images: Img[] = [] 
+            for (const img of this.board.images) {
+                if (!isNaN(Number(img.name)) && img.name.trim() !== "") {
+                    img.visible = false
+                }
             }
         })
     }

@@ -6,7 +6,7 @@ import { Camera } from "./camera.js";
 import { SpriteComponent } from "./Components.js";
 import { GameInput, MouseButton } from "./game-states.js";
 import { Puck, Wall } from "./GameObjects.js";
-import { Circle, Rect, ShotData, startPhysicsSimulation, Vector2 } from "./physics.js";
+import { Circle, distance, Rect, ShotData, startPhysicsSimulation, Vector2 } from "./physics.js";
 import { PlayerAction, ServerMessage, WallState } from "./socket-manager.js";
 import { SocketEventManager } from "./socketevent-manager.js";
 import { Board, BoardEventManager } from "./ui.js";
@@ -24,12 +24,20 @@ interface WorldState {
     Exit() : void;
 }
 
+export enum POWER_LEVEL {
+    LEVEL_1 = 1,
+    LEVEL_2 = 2,
+    LEVEL_3 = 3,
+    LEVEL_4 = 4,
+    LEVEL_5 = 5,
+}
 
 class ActiveState implements WorldState {
 
     name: string;
     world: World;
     leftClickPressed: boolean;
+    currentPowerLevel: POWER_LEVEL = POWER_LEVEL.LEVEL_1
     leftClickCoordinates: Vector2;
     constructor(world: World) {
         this.name = "active-state";
@@ -44,6 +52,14 @@ class ActiveState implements WorldState {
 
     processInput(input: GameInput) {
         //here, we will have to process the input shot and wall placements
+        if (input.type == "mousemove") {
+            if (this.leftClickPressed) {
+                let currentPosVector = new Vector2(input.cameraX, input.cameraY)
+                let power = this.getPowerLevelFromDistance(distance(currentPosVector, this.leftClickCoordinates))
+                console.log("current power level is: ", power)
+                this.world.boardEventManager.onEvent("showpowerlevel", power)
+            }
+        }
         if (input.type == "mousedown" && input.buttonType == MouseButton.LEFT_CLICK) {
             this.leftClickCoordinates.x = input.cameraX;
             this.leftClickCoordinates.y = input.cameraY;
@@ -52,12 +68,35 @@ class ActiveState implements WorldState {
             if (this.leftClickPressed) {
                 let directionX = this.leftClickCoordinates.x - input.cameraX;
                 let directionY = this.leftClickCoordinates.y - input.cameraY;
+
+                let currentPosVector = new Vector2(input.cameraX, input.cameraY)
+                let powerLevel = this.getPowerLevelFromDistance(distance(currentPosVector, this.leftClickCoordinates))
+                let power: number = 0
+                switch (powerLevel) {
+                    case POWER_LEVEL.LEVEL_1:
+                        power = 200;
+                        break;
+                    case POWER_LEVEL.LEVEL_2:
+                        power = 500;
+                        break;
+                    case POWER_LEVEL.LEVEL_3:
+                        power = 900;
+                        break;
+                    case POWER_LEVEL.LEVEL_4:
+                        power = 1200;
+                        break;
+                    case POWER_LEVEL.LEVEL_5:
+                        power = 1500;
+                        break;
+                }
                 let action: PlayerAction = {
-                    power: 1500,        // add scalable powers later
+                    power: power,
                     direction_horizontal: directionX,
                     direction_vertical: directionY,
                 }
                 this.sendMove(action)
+                this.world.boardEventManager.onEvent("hidepowerlevel")
+                this.leftClickPressed = false
             }
         } else if (input.type == "mousedown" && input.buttonType == MouseButton.RIGHT_CLICK) {
             let worldCoords = screenToWorld(input.cameraX, input.cameraY, this.world.camera, 200, 200, 64);
@@ -148,6 +187,20 @@ class ActiveState implements WorldState {
             if (msg.type == "wall-update") {
                 msg.walls.forEach((wallState) => this.world.walls.push(new Wall(wallState.position_x, wallState.position_y)))
             }
+        }
+    }
+
+    getPowerLevelFromDistance(distance: number) : POWER_LEVEL {
+        if (distance < 20) {
+            return POWER_LEVEL.LEVEL_1
+        } else if (distance < 80) {
+            return POWER_LEVEL.LEVEL_2
+        } else if (distance < 150) {
+            return POWER_LEVEL.LEVEL_3
+        } else if (distance < 200) {
+            return POWER_LEVEL.LEVEL_4
+        } else {
+            return POWER_LEVEL.LEVEL_5
         }
     }
 }
