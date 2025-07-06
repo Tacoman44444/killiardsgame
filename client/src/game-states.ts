@@ -2,13 +2,14 @@ import { SpriteComponent } from "./Components.js"
 import { Puck } from "./GameObjects.js"
 import { ServerMessage } from "./socket-manager.js"
 import { SocketEventManager } from "./socketevent-manager.js"
-import { Board } from "./ui.js"
+import { Board, BoardEventManager } from "./ui.js"
 import { World } from "./World.js"
 
 
 interface GameState {
     name:       string
     board:      Board
+    boardEventManager: BoardEventManager
     game: Game
     initializeBoard() : void;
     initializeWorld(world: World) : void;
@@ -33,20 +34,24 @@ export type GameInput =
 class MainMenuState implements GameState {
     name:   string;
     board:  Board;
+    boardEventManager: BoardEventManager
     game: Game;
 
     constructor(game: Game) {
         this.name = "main-menu";
         this.board = new Board();
+        this.boardEventManager = new BoardEventManager(this.board)
         this.game = game;
         this.initializeBoard();
     }
 
     initializeBoard() {
-        this.board.addInputTextBox("username", 600, 525, 400, 150, 10);
-        this.board.addInputTextBox("code", 700, 200, 200, 75, 6);
-        this.board.addButton("create", 20, 20, 68, 16, new SpriteComponent("createroom_button"), () => this.sendCreateRoomRequest(), true);
-        this.board.addButton("join", 20, 700, 65, 16, new SpriteComponent("createroom_button"), () => this.sendJoinRequest(), true)
+        this.board.addInputTextBox("username", 650, 400, 300, 50, 20);
+        this.board.addInputTextBox("code", 750, 500, 100, 25, 6);
+        this.board.addButton("create", 300, 700, 204, 48, new SpriteComponent("createroom_button"), () => this.sendCreateRoomRequest(), true);
+        this.board.addButton("join", 1100, 700, 204, 48, new SpriteComponent("createroom_button"), () => this.sendJoinRequest(), true)
+        this.board.addDisplayTextBox("test", 20, 20, 100, 100, "bigbchungus", 48, true)
+
     }
 
     initializeWorld(world: World): void {}
@@ -60,22 +65,36 @@ class MainMenuState implements GameState {
         this.board.render(ctx)
     }
 
+    getName(): string {
+        return this.board.inputBoxes.find(box => box.name === "username")?.text || "";
+    }
+
+    getCode(): string {
+        return this.board.inputBoxes.find(box => box.name === "code")?.text || "";
+    }
+
     //handle socket event and send messages now ... 
 
     sendJoinRequest() {
-        let code = "";
-        this.board.textBoxes.forEach((box) => {
-            if (box.name === "code") {
-                code = box.text;
-            }
-        });
-        this.game.socketEventBus.emit("join-room", code);
-        this.game.currentState = this.game.states.requestedForLobby;
-        this.game.states.requestedForLobby;
+        let code = this.getCode()
+        let name = this.getName()
+
+        if (code == "" || name == "") {
+            console.log("invalid details")
+        } else {
+            console.log("sending this code to the server: ", code)
+            this.game.socketEventBus.emit("join-room", { code: code, name: name });
+            this.game.currentState = this.game.states.requestedForLobby;
+        }
+
     }
 
     sendCreateRoomRequest() {
-        this.game.socketEventBus.emit("create-room")
+        let name = this.getName()
+        if (name === "") {
+            console.log("invalid details")
+        }
+        this.game.socketEventBus.emit("create-room", name)
         this.game.currentState = this.game.states.requestedForLobby;
     }
 }
@@ -83,12 +102,14 @@ class MainMenuState implements GameState {
 class RequestedForLobby implements GameState {
     name:   string;
     board:  Board;
+    boardEventManager: BoardEventManager
     game: Game;
     code: string;   //rage coding, probably shouldnt do it this way
 
     constructor(game: Game) {
         this.name = "requested-for-lobby";
         this.board = new Board();
+        this.boardEventManager = new BoardEventManager(this.board)
         this.game = game;
         this.code = "";
         this.sub();
@@ -96,7 +117,7 @@ class RequestedForLobby implements GameState {
     }
 
     initializeBoard() {
-
+        
     }
 
     initializeWorld(world: World): void {}
@@ -140,18 +161,20 @@ class RequestedForLobby implements GameState {
 class InLobby implements GameState {
     name:   string;
     board:  Board;
+    boardEventManager: BoardEventManager
     game: Game;
 
     constructor(game: Game) {
         this.name = "in-lobby";
         this.board = new Board();
+        this.boardEventManager = new BoardEventManager(this.board)
         this.game = game;
         this.initializeBoard();
         this.sub();
     }
 
     initializeBoard() {
-        this.board.addDisplayTextBox("code", 20, 20, 100, 50, this.game.code)
+        this.board.addDisplayTextBox("code", 20, 20, 100, 50, this.game.code, 48, true)
         this.board.addButton("start", 20, 700, 65, 16, new SpriteComponent("createroom_button"), () => this.sendGameStart(), true)
     }
 
@@ -176,10 +199,10 @@ class InLobby implements GameState {
         if (msg.type == "game-start") {
             console.log("GAME START RECEIVED, msg =", JSON.stringify(msg, null, 2));
             this.game.currentState = this.game.states.inGame;
-            let player = new Puck(msg.player.id, msg.player.position_x, msg.player.position_y)
+            let player = new Puck(msg.player.id, msg.player.username, msg.player.position_x, msg.player.position_y)
             let opps: Puck[] = []
-            msg.other_players.forEach((opp) => opps.push(new Puck(opp.id, opp.position_x, opp.position_y)))
-            let world = new World(msg.current_map, msg.next_map, player, opps, this.game.socketEventBus)
+            msg.other_players.forEach((opp) => opps.push(new Puck(opp.id, opp.username, opp.position_x, opp.position_y)))
+            let world = new World(msg.current_map, msg.next_map, player, opps, this.game.socketEventBus, this.game.states.inGame.boardEventManager)
             this.game.currentState.initializeWorld(world);
         }
     }
@@ -192,18 +215,61 @@ class InLobby implements GameState {
 class InGame implements GameState {
     name:   string;
     board:  Board;
+    boardEventManager: BoardEventManager;
     world: World | null;
     game: Game;
 
     constructor(game: Game) {
         this.name = "in-lobby";
         this.board = new Board();
+        this.boardEventManager = new BoardEventManager(this.board);
         this.world = null;
         this.game = game;
+        this.initializeBoard()
     }
 
     initializeBoard() {
-
+        this.board.addDisplayTextBox("spectating", 20, 20, 200, 100, "", 48, false);
+        this.board.addDisplayTextBox("turnactive", 100, 100, 1000, 200, "YOUR TURN -- SHOOT", 48, false);
+        this.boardEventManager.addEvent("spectating", (username: string) => {
+            let box = this.board.getDisplayTextBox("spectating");
+            if (box) {
+                box.visible = true;
+                box.text = "SPECTATING " + username;
+            } else {
+                console.log("WHERE IS THE BOX")
+            }
+        })
+        this.boardEventManager.addEvent("onplayer", () => {
+            let box = this.board.getDisplayTextBox("spectating");
+            if (box) {
+                box.visible = false;
+            } else {
+                console.log("WHERE IS THE BOX")
+            }
+        })
+        this.boardEventManager.addEvent("turnactive", () => {
+            let box = this.board.getDisplayTextBox("turnactive");
+            if (box) {
+                box.visible = true;
+            } else {
+                console.log("WHERE IS THE BOX")
+            }
+            let boxspec = this.board.getDisplayTextBox("spectating");
+            if (boxspec) {
+                boxspec.visible = false;
+            } else {
+                console.log("WHERE IS THE BOX")
+            }
+        })
+        this.boardEventManager.addEvent("turncompleted", () => {
+            let box = this.board.getDisplayTextBox("turnactive");
+            if (box) {
+                box.visible = false;
+            } else {
+                console.log("WHERE IS THE BOX")
+            }
+        })
     }
 
     initializeWorld(world: World) {
@@ -217,14 +283,11 @@ class InGame implements GameState {
     }
 
     render(ctx: CanvasRenderingContext2D) {
-        this.board.render(ctx)
         if (this.world != null) {
-            this.world.render(ctx)
-        } else {
-            console.log("there aint no world to render ???")
+            this.world.render(ctx);
         }
-        
-        //console.log("in the in game render loop");
+
+        this.board.render(ctx); 
     }
 
     

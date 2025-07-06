@@ -4,11 +4,12 @@
 import { Arena, MapGenData } from "./Arena.js";
 import { Camera } from "./camera.js";
 import { SpriteComponent } from "./Components.js";
-import { Game, GameInput, MouseButton } from "./game-states.js";
+import { GameInput, MouseButton } from "./game-states.js";
 import { Puck, Wall } from "./GameObjects.js";
 import { Circle, Rect, ShotData, startPhysicsSimulation, Vector2 } from "./physics.js";
 import { PlayerAction, ServerMessage, WallState } from "./socket-manager.js";
 import { SocketEventManager } from "./socketevent-manager.js";
+import { Board, BoardEventManager } from "./ui.js";
 
 const radius = 16;
 
@@ -87,10 +88,12 @@ class ActiveState implements WorldState {
     Enter() {
         console.log("entering active state")
         this.world.camera.SwitchFollow(this.world.player.circle.center);
+        this.world.boardEventManager.onEvent("turnactive")
     }
 
     Exit() {
         //this.unsub();
+        this.world.boardEventManager.onEvent("turncompleted")
     }
 
     sub() {
@@ -171,6 +174,7 @@ class ProcessingState implements WorldState {
                 this.world.spectatingIndex = 0;
             }
             this.world.camera.SwitchFollow(this.world.opps[this.world.spectatingIndex].circle.center)
+            this.world.boardEventManager.onEvent("spectating", this.world.opps[this.world.spectatingIndex].name)
             }
         }
     }
@@ -190,6 +194,7 @@ class ProcessingState implements WorldState {
 
     Enter() {
         console.log("entering processing state")
+
     }
 
     Exit() {
@@ -332,11 +337,12 @@ export class World {
         processingState: WorldState;
     }
     currentState: WorldState;
-    socketEventBus: SocketEventManager
+    socketEventBus: SocketEventManager;
+    boardEventManager: BoardEventManager;
     simInProgress: boolean = false;
     bufferedEntityUpdate: ServerMessage | null = null;
 
-    constructor(currentData: MapGenData, nextData: MapGenData, player: Puck, opps: Puck[], socketEventBus: SocketEventManager) {
+    constructor(currentData: MapGenData, nextData: MapGenData, player: Puck, opps: Puck[], socketEventBus: SocketEventManager, boardEventManager: BoardEventManager) {
         this.player = player;
         this.opps = opps
         this.currentArena = new Arena(new SpriteComponent("floorTile"), new SpriteComponent("decayedTile"), new SpriteComponent("abyssTile"), currentData);
@@ -348,6 +354,7 @@ export class World {
         }
         this.currentState = this.states.processingState;
         this.socketEventBus = socketEventBus;
+        this.boardEventManager = boardEventManager;
         this.currentState.Enter();
         this.states.activeState.Initialize();
         this.states.processingState.Initialize();

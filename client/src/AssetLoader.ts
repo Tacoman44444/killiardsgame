@@ -4,7 +4,8 @@ export const ASSET_MAP: Record<string, string> = {
     createroom_button: "assets/createroom.png",
     texture_stone: "assets/textureStone.png",
     texture_stone_dark: "assets/textureStoneDark.png",
-    abyss_texture: "assets/abyss.png"
+    abyss_texture: "assets/abyss.png",
+    powerlevel_sheet: "assets/powerlevel_sheet.png",
 }
 
 export const images = new Map<string, HTMLImageElement>();

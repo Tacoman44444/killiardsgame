@@ -17,6 +17,11 @@ const SPRITE_MAP: Record <string, SpriteDef> = {
     brickTile :  { src: "block_sheet", xOffset: 288, yOffset: 0, width: 16, height: 16 },
     puck      :  { src: "puck", xOffset: 0, yOffset: 0, width: 128, height: 128 },
     createroom_button: { src: "createroom_button", xOffset: 0, yOffset: 0, width: 68, height: 16 },
+    power_level_5: { src: "powerlevel_sheet", xOffset: 0, yOffset: 0, width: 10, height: 20 },
+    power_level_4: { src: "powerlevel_sheet", xOffset: 10, yOffset: 0, width: 10, height: 20 },
+    power_level_3: { src: "powerlevel_sheet", xOffset: 20, yOffset: 0, width: 10, height: 20 },
+    power_level_2: { src: "powerlevel_sheet", xOffset: 30, yOffset: 0, width: 10, height: 20 },
+    power_level_1: { src: "powerlevel_sheet", xOffset: 40, yOffset: 0, width: 10, height: 20 },
 }
 
 export class SpriteComponent {

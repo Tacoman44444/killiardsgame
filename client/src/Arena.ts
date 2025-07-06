@@ -57,11 +57,42 @@ export class Arena {
         }
     }
 
+    renderMiniMap(ctx: CanvasRenderingContext2D, x: number, y: number, size: number = 200, nextArena: number[][]) {
+        const tileWidth = size / this.mapData.width;
+        const tileHeight = size / this.mapData.height;
+
+        for (let row = 0; row < this.mapData.height; row++) {
+            for (let col = 0; col < this.mapData.width; col++) {
+                const curr = this.mapData.arena[row][col];
+                const next = nextArena[row][col];
+
+                let color = "#000000"; // default: abyss
+                if (curr === 0 && next === 0) color = "#FFFFFF";      // walkable
+                else if (curr === 0 && next === 1) color = "#DDDDDD"; // decaying (lighter gray)
+
+                ctx.fillStyle = color;
+                ctx.fillRect(
+                    x + col * tileWidth,
+                    y + row * tileHeight,
+                    tileWidth,
+                    tileHeight
+                );
+            }
+        }
+
+        // Optional border
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, size, size);
+    }
+
 }
 
 function isInFrame(pointX: number, pointY: number, right: number, left: number, down: number, up: number) {
     return pointX > left && pointX < right && pointY < down && pointY > up;
 }
+
+
 
 function placeholderArenaGenerator() : MapGenData {
     return {arena: [

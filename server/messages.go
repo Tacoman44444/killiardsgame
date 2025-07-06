@@ -175,9 +175,10 @@ const (
 )
 
 type ClientMessage struct {
-	Type   ClientMessageType `json:"type"`
-	Id     string            `json:"id"`
-	Code   string            `json:"code"`
-	Wall   WallState         `json:"wall_state"`
-	Action PlayerAction      `json:"player_action"`
+	Type     ClientMessageType `json:"type"`
+	Id       string            `json:"id"`
+	Name     string            `json:"name"`
+	JoinData PlayerJoinData    `json:"data"`
+	Wall     WallState         `json:"wall_state"`
+	Action   PlayerAction      `json:"player_action"`
 }

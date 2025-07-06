@@ -9,6 +9,7 @@ export type PlayerIdentity = {
     position_y: number;
     velocity_x: number;
     velocity_y: number;
+    username:   string;
 }
 
 export type PlayerAction = {
@@ -29,20 +30,21 @@ export type WallState = {
 }
 
 export type JoinRoomData = {
-    id: string,
+    username: string,
     code: string
 }
 
 type ClientMessage = 
     | {
         type: "create-room";
+        username: string,
     }
     | {
         type: "start-game";
     }
     | {
         type: "join-room";
-        code: string;
+        data: JoinRoomData;
     }
     | {
         type: "send-wall";
@@ -140,10 +142,11 @@ export class SocketManager {
         this.socket.send(JSON.stringify(msg));
     }
 
-    sendCreateRoomRequest() {
+    sendCreateRoomRequest(name: string) {
         console.log("sending create room request")
         const msg: ClientMessage = {
             type: "create-room",
+            username: name,
         };
         this.send(msg);
     }
@@ -155,11 +158,11 @@ export class SocketManager {
         this.send(msg);
     }
 
-    sendJoinRoomRequest(code: string) {
+    sendJoinRoomRequest(data: JoinRoomData) {
         console.log("sending join room request")
         const msg: ClientMessage = {
             type: "join-room",
-            code: code,
+            data: data,
         };
         this.send(msg);
     }

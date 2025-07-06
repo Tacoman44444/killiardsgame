@@ -13,8 +13,9 @@ const (
 )
 
 type PlayerIdentity struct {
-	id     string
-	circle *tools.Circle
+	id       string
+	circle   *tools.Circle
+	username string
 }
 
 type ClientPlayerIdentity struct {
@@ -23,6 +24,7 @@ type ClientPlayerIdentity struct {
 	PositionY float64 `json:"position_y"`
 	VelocityX float64 `json:"velocity_x"`
 	VelocityY float64 `json:"velocity_y"`
+	Username  string  `json:"username"`
 }
 
 func FormatPlayerId(playerId PlayerIdentity) ClientPlayerIdentity {
@@ -82,14 +84,14 @@ type GameState struct {
 	turnTimer time.Duration
 }
 
-func GetNewGame(players []string) *GameState {
+func GetNewGame(playerIDs []string, playerUsernames []string) *GameState {
 
 	mapState := tools.GenerateMap(200, 200, false, "")
 	nextMap := tools.ShrinkArena(mapState)
-	playerMap := make(map[string]*PlayerIdentity, len(players))
-	safeSpawns := tools.GenerateSafeSpawns(len(players), mapState)
-	for i := range players {
-		playerMap[players[i]] = &PlayerIdentity{players[i], &tools.Circle{Center: safeSpawns[i], Radius: PUCK_RADIUS, Velocity: tools.Vector2{X: 0, Y: 0}}}
+	playerMap := make(map[string]*PlayerIdentity, len(playerIDs))
+	safeSpawns := tools.GenerateSafeSpawns(len(playerIDs), mapState)
+	for i := range playerIDs {
+		playerMap[playerIDs[i]] = &PlayerIdentity{playerIDs[i], &tools.Circle{Center: safeSpawns[i], Radius: PUCK_RADIUS, Velocity: tools.Vector2{X: 0, Y: 0}}, playerUsernames[i]}
 	}
 	walls := make([]*WallState, 0, 10)
 

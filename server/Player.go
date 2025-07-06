@@ -63,7 +63,7 @@ func (p *PlayerInHub) HandleClientMessage(cm ClientMessage, channelOpen bool, pl
 			senderID: player.id,
 			msg:      cm,
 		}
-
+		player.username = cm.Name
 		player.hub.readPlayer <- msg
 		player.SetState(&PlayerRequestedForLobby{})
 	case ClientJoinRoom:
@@ -74,7 +74,7 @@ func (p *PlayerInHub) HandleClientMessage(cm ClientMessage, channelOpen bool, pl
 			senderID: player.id,
 			msg:      cm,
 		}
-
+		player.username = cm.Name
 		player.hub.readPlayer <- msg
 		player.SetState(&PlayerRequestedForLobby{})
 	}
@@ -245,6 +245,7 @@ func (p *PlayerInGame) Exit() {}
 
 type Player struct {
 	id           string
+	username     string
 	turnsPlayed  int
 	conn         *websocket.Conn
 	socketClosed bool

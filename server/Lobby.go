@@ -212,11 +212,13 @@ func (l LobbyWaitingForPlayers) HandlePlayerMessage(pm PlayerMessage, channelOpe
 	switch pm.msgType {
 	case PlayerStartGame:
 		if pm.sender == lobby.owner.conn {
-			players := make([]string, 0, 10)
+			playerIDs := make([]string, 0, 10)
+			playerUsernames := make([]string, 0, 10)
 			for _, value := range lobby.players {
-				players = append(players, value.id)
+				playerIDs = append(playerIDs, value.id)
+				playerUsernames = append(playerUsernames, value.username)
 			}
-			lobby.gameState = GetNewGame(players)
+			lobby.gameState = GetNewGame(playerIDs, playerUsernames)
 
 			for _, value := range lobby.players { //sending the message to all players
 				msg := LobbyMessage{

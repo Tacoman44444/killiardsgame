@@ -17,6 +17,11 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+type PlayerJoinData struct {
+	Username string `json:"username"`
+	Code     string `json:"code"`
+}
+
 type HubMessageType int
 
 const (
@@ -48,16 +53,22 @@ func (h *Hub) Run() {
 		select {
 		case plrmsg := <-h.readPlayer:
 			if plrmsg.msgType == PlayerJoinRoom {
-				lobby, ok := lobbies[plrmsg.msg.Code]
+				lobby, ok := lobbies[plrmsg.msg.JoinData.Code]
 				if ok {
 
 					hubmsg := HubMessage{
 						msgType: HubSendPlayerToLobby,
-						code:    plrmsg.msg.Code,
+						code:    plrmsg.msg.JoinData.Code,
 						player:  plrmsg.player,
 						lobby:   lobby,
 					}
 					lobby.readHub <- hubmsg
+					plrmsg.player.readHub <- hubmsg
+				} else {
+					fmt.Println("the code recieved by player: ", plrmsg.msg.JoinData.Code)
+					hubmsg := HubMessage{
+						msgType: HubPlayerInvalidCode,
+					}
 					plrmsg.player.readHub <- hubmsg
 				}
 			} else if plrmsg.msgType == PlayerCreateRoom {

@@ -14,12 +14,14 @@ export class Puck implements GameObject {
     
     name: string;
     id: string;
+    username: string;
     puckSprite: SpriteComponent;
     circle: Circle;
 
-    constructor(id: string, posX: number, posY: number) {
+    constructor(id: string, username: string, posX: number, posY: number) {
         this.name = "puck";
         this.id = id;
+        this.username = username;
         this.puckSprite = new SpriteComponent("puck");
         this.circle = new Circle(new Vector2(posX, posY), 16)
     }

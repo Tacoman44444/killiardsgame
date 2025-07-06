@@ -1,11 +1,10 @@
 import { SpriteComponent } from "./Components.js";
 import { GameInput } from "./game-states.js";
 
-
 export class Board {
 
     buttons: Button[] = [];
-    textBoxes: InputTextBox[] = [];
+    inputBoxes: InputTextBox[] = [];
     displayBoxes: DisplayTextBox[] = []
 
     addButton(name: string, x: number, y: number, width: number, height: number, sprite: SpriteComponent, onClick: () => void, visible: boolean) {
@@ -13,29 +12,67 @@ export class Board {
         this.buttons.push(btn)
     }
 
-    addDisplayTextBox(name: string, x: number, y: number, width: number, height: number, text: string) {
-        const box = new DisplayTextBox(name, x, y, width, height, text);
+    addDisplayTextBox(name: string, x: number, y: number, width: number, height: number, text: string, fontSize: number, visible: boolean) {
+        const box = new DisplayTextBox(name, x, y, width, height, text, fontSize, visible);
         this.displayBoxes.push(box)
     }
 
     addInputTextBox(name: string, x: number, y: number, width: number, height: number, maxLength: number) {
         const box = new InputTextBox(name, x, y, width, height, maxLength);
-        this.textBoxes.push(box);
+        this.inputBoxes.push(box);
     }
 
     processInput(input: any) {
         this.buttons.forEach((btn) => btn.processInput(input));
-        this.textBoxes.forEach((box) => box.processInput(input));
+        this.inputBoxes.forEach((box) => box.processInput(input));
     }
 
     render(ctx: CanvasRenderingContext2D) : void {
         this.buttons.forEach((btn) => btn.render(ctx));
-        this.textBoxes.forEach((box) => box.render(ctx));
+        this.inputBoxes.forEach((box) => box.render(ctx));
+        this.displayBoxes.forEach((box) => box.render(ctx));
+    }
+
+    updateDisplayTextBox(boxName: string, newText: string) {
+        this.displayBoxes.forEach((box) => {
+            if (box.name == boxName) {
+                box.UpdateText(newText)
+            }
+        })
+    }
+
+    getDisplayTextBox(id: string): DisplayTextBox | undefined {
+        for (const box of this.displayBoxes) {
+            if (box.name === id) {
+                return box;
+            }
+        }
     }
 
 }
 
-type uiElement = Button | InputTextBox;
+export class BoardEventManager {
+    board: Board;
+    eventMap: { [key: string]: Function } = {};
+
+    constructor(board: Board) {
+        this.board = board;
+    }
+
+    addEvent(eventType: string, callback: Function) {
+        this.eventMap[eventType] = callback;
+    }
+
+    onEvent(eventType: string, data?: any) {
+        console.log("=== BoardEventManager.onEvent ===");
+        console.log("eventType:", eventType);
+        console.log("eventMap keys:", Object.keys(this.eventMap));
+        console.log("eventMap[eventType]:", this.eventMap[eventType]);
+        this.eventMap[eventType](data);
+    }
+}
+
+type uiElement = Button | InputTextBox | DisplayTextBox;
 
 class Button {
     name:   string;
@@ -59,15 +96,20 @@ class Button {
     }
 
     processInput(input: GameInput) {
-        if (input.type == "mouseup") {
-            if (contains(this, input.cameraX, input.cameraY)) {
-                this.onClick();
+        if (this.visible) {
+            if (input.type == "mouseup") {
+                if (contains(this, input.cameraX, input.cameraY)) {
+                    this.onClick();
+                }
             }
         }
+
     }
 
     render(ctx: CanvasRenderingContext2D) {
-        ctx.drawImage(this.sprite.img, this.sprite.sprite.xOffset, this.sprite.sprite.yOffset, this.sprite.sprite.width, this.sprite.sprite.height, this.x, this.y, this.width, this.height)
+        if (this.visible) {
+            ctx.drawImage(this.sprite.img, this.sprite.sprite.xOffset, this.sprite.sprite.yOffset, this.sprite.sprite.width, this.sprite.sprite.height, this.x, this.y, this.width, this.height)
+        }
     }
 };
 
@@ -77,15 +119,19 @@ class DisplayTextBox {
     y: number;
     width: number;
     height: number;
-    text: string;
+    text: string = "-";
+    fontSize: number;
+    visible: boolean;
 
-    constructor(name: string, x: number, y: number, width: number, height: number, text: string) {
+    constructor(name: string, x: number, y: number, width: number, height: number, text: string, fontSize: number = 16, visible: boolean) {
         this.name = name;
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.text = text;
+        this.fontSize = fontSize;
+        this.visible = visible
     }
 
     UpdateText(newText: string) {
@@ -93,43 +139,39 @@ class DisplayTextBox {
     }
 
     render(ctx: CanvasRenderingContext2D) {
-    // Optional: Draw the background box
-    ctx.fillStyle = "#ffffff"; // background color
-    ctx.fillRect(this.x, this.y, this.width, this.height);
 
-    // Optional: Draw a border
-    ctx.strokeStyle = "#000000"; // border color
-    ctx.strokeRect(this.x, this.y, this.width, this.height);
+        
+        // Set up text styling
+        if (this.visible) {
 
-    // Set up text styling
-    ctx.fillStyle = "#000000"; // text color
-    ctx.font = "16px Arial";   // font
-    ctx.textBaseline = "top";
+        ctx.fillStyle = "#999999"; // text color
+        ctx.font = `${this.fontSize}px Arial`;   // dynamic font size
+        ctx.textBaseline = "top";
 
-    // Word-wrap logic
-    const padding = 4;
-    const maxWidth = this.width - 2 * padding;
-    const words = this.text.split(" ");
-    let line = "";
-    let lineHeight = 20;
-    let y = this.y + padding;
+        // Word-wrap logic
+        const padding = 0;
+        const maxWidth = this.width - 2 * padding;
+        const words = (this.text ?? "").split(" ");
+        let line = "";
+        const lineHeight = this.fontSize + 4;
+        let y = this.y + padding;
 
-    for (let i = 0; i < words.length; i++) {
-        const testLine = line + words[i] + " ";
-        const metrics = ctx.measureText(testLine);
-        const testWidth = metrics.width;
+        for (let i = 0; i < words.length; i++) {
+            const testLine = line + words[i] + " ";
+            const testWidth = ctx.measureText(testLine).width;
 
-        if (testWidth > maxWidth && line !== "") {
-            ctx.fillText(line, this.x + padding, y);
-            line = words[i] + " ";
-            y += lineHeight;
-        } else {
-            line = testLine;
+            if (testWidth > maxWidth && line !== "") {
+                ctx.fillText(line, this.x + padding, y);
+                line = words[i] + " ";
+                y += lineHeight;
+            } else {
+                line = testLine;
+            }
+        }
+
+        ctx.fillText(line, this.x + padding, y); // draw last line
         }
     }
-
-    ctx.fillText(line, this.x + padding, y); // draw last line
-}
 }
 
 class InputTextBox {
