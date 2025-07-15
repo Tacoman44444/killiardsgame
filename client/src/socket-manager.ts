@@ -47,6 +47,9 @@ type ClientMessage =
         data: JoinRoomData;
     }
     | {
+        type: "leave-room";
+    }
+    | {
         type: "send-wall";
         wall_state: WallState;
     }
@@ -167,6 +170,13 @@ export class SocketManager {
         this.send(msg);
     }
 
+    sendLeaveRoomRequest() {
+        const msg: ClientMessage = {
+            type: "leave-room",
+        };
+        this.send(msg)
+    }
+
     sendWall(wallState: WallState) {
         const msg: ClientMessage = {
             type: "send-wall",
@@ -194,6 +204,7 @@ export class SocketManager {
         this.eventManager.subscribe("create-room", this.sendCreateRoomRequest.bind(this));
         this.eventManager.subscribe("start-game", this.sendStartGameRequest.bind(this));
         this.eventManager.subscribe("join-room", this.sendJoinRoomRequest.bind(this));
+        this.eventManager.subscribe("leave-room", this.sendLeaveRoomRequest.bind(this));
         this.eventManager.subscribe("send-wall", this.sendWall.bind(this));
         this.eventManager.subscribe("send-turn", this.sendTurn.bind(this));
         this.eventManager.subscribe("simulation-done", this.sendSimulationDone.bind(this));

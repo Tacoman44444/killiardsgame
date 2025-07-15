@@ -8,6 +8,7 @@ const (
 	ServerRoomCreated   ServerMessageType = "room-created"
 	ServerRoomJoined    ServerMessageType = "room-joined"
 	ServerInvalidCode   ServerMessageType = "invalid-code"
+	ServerMakeOwner     ServerMessageType = "make-owner"
 	ServerGameStart     ServerMessageType = "game-start"
 	ServerTurnStart     ServerMessageType = "turn-started"
 	ServerTurnTimeout   ServerMessageType = "turn-timeout"
@@ -41,6 +42,12 @@ type InvalidCodeMessage struct {
 }
 
 func (m InvalidCodeMessage) isServerMessage() {}
+
+type MakeOwnerMessage struct {
+	Type ServerMessageType `json:"type"`
+}
+
+func (m MakeOwnerMessage) isServerMessage() {}
 
 type GameStartMessage struct {
 	Type         ServerMessageType      `json:"type"`
@@ -126,6 +133,10 @@ func newInvalidCodeMessage() InvalidCodeMessage {
 	return InvalidCodeMessage{ServerInvalidCode}
 }
 
+func newMakeOwnerMessage() MakeOwnerMessage {
+	return MakeOwnerMessage{ServerMakeOwner}
+}
+
 func newGameStartMessage(currentMap tools.MapState, nextMap tools.MapState, player PlayerIdentity, otherPlayers []PlayerIdentity) GameStartMessage {
 	return GameStartMessage{ServerGameStart, currentMap, nextMap, FormatPlayerId(player), FormatPlayerIds(otherPlayers)}
 }
@@ -168,6 +179,7 @@ const (
 	ClientCreateRoom     ClientMessageType = "create-room"
 	ClientStartGame      ClientMessageType = "start-game"
 	ClientJoinRoom       ClientMessageType = "join-room"
+	ClientLeaveRoom      ClientMessageType = "leave-room"
 	ClientSendWall       ClientMessageType = "send-wall"
 	ClientSendTurn       ClientMessageType = "send-turn"
 	ClientSendId         ClientMessageType = "send-id"

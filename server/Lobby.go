@@ -18,6 +18,7 @@ const (
 	LobbySendTurnTimeout
 	LobbyBroadcastMove
 	LobbySendGameStart
+	LobbySendMakeOwner
 	LobbySendGameOver
 	LobbyClose // :<
 )
@@ -113,6 +114,7 @@ type Lobby struct {
 	code              string
 	Inbound           chan PlayerMessage
 	readHub           chan HubMessage
+	hub               *Hub
 	gameState         *GameState
 	players           map[*websocket.Conn]*Player
 	queue             *TurnQueue
@@ -126,11 +128,12 @@ type Lobby struct {
 	simCount          int
 }
 
-func NewLobby(code string, owner *Player) *Lobby {
+func NewLobby(hub *Hub, code string, owner *Player) *Lobby {
 	lb := Lobby{
 		code:      code,
 		Inbound:   make(chan PlayerMessage),
 		readHub:   make(chan HubMessage),
+		hub:       hub,
 		gameState: nil,
 		players:   make(map[*websocket.Conn]*Player),
 		queue:     NewTurnQueue(),
@@ -235,6 +238,28 @@ func (l LobbyWaitingForPlayers) HandlePlayerMessage(pm PlayerMessage, channelOpe
 		} else if pm.sender != lobby.owner.conn {
 			fmt.Println("only the party owner can start the match")
 			return
+		}
+
+	case PlayerLeaveRoom:
+		fmt.Println("some brudda just left the room....  THIS BURDDA:  ", pm.senderID)
+		delete(lobby.players, pm.sender)
+		lobby.queue.RemoveByID(pm.senderID)
+
+		if lobby.queue.Size() == 0 {
+			msg := LobbyMessage{
+				msgType:   LobbyClose,
+				lobbyCode: lobby.code,
+			}
+			lobby.hub.readLobby <- msg
+			return
+		}
+
+		if pm.player == lobby.owner {
+			lobby.owner = lobby.queue.Current()
+			msg := LobbyMessage{
+				msgType: LobbySendMakeOwner,
+			}
+			lobby.owner.readLobby <- msg
 		}
 	}
 }

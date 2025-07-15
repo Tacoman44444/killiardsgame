@@ -16,6 +16,7 @@ const (
 	PlayerSendAction PlayerMessageType = iota
 	PlayerSendWall
 	PlayerStartGame
+	PlayerLeaveRoom
 	PlayerSimulationDone
 	PlayerJoinRoom
 	PlayerCreateRoom
@@ -139,6 +140,16 @@ func (p *PlayerInLobby) HandleClientMessage(cm ClientMessage, channelOpen bool, 
 			msg:      cm,
 		}
 		player.lobby.Inbound <- msg
+	case ClientLeaveRoom:
+		msg := PlayerMessage{
+			msgType:  PlayerLeaveRoom,
+			player:   player,
+			sender:   player.conn,
+			senderID: player.id,
+			msg:      cm,
+		}
+		player.lobby.Inbound <- msg
+		player.SetState(&PlayerInHub{})
 	}
 }
 
@@ -158,6 +169,10 @@ func (p *PlayerInLobby) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, pl
 		msg := newGameStartMessage(lm.currentMap, lm.nextMap, lm.player, otherPlayers)
 		player.WriteToClient(msg, player.id)
 		player.SetState(&PlayerInGame{})
+	case LobbySendMakeOwner:
+		fmt.Println("[PLAYER IN LOBBY] sending player a make owner message")
+		msg := newMakeOwnerMessage()
+		player.WriteToClient(msg, player.id)
 	}
 }
 

@@ -135,7 +135,7 @@ class RequestedForLobby implements GameState {
     private sub() {
         this.game.socketEventBus.subscribe("invalid-code", this.onInvalidCode.bind(this));
         this.game.socketEventBus.subscribe("room-created", this.onRoomCreated.bind(this))
-        this.game.socketEventBus.subscribe("room-joined", this.onRoomCreated.bind(this));
+        this.game.socketEventBus.subscribe("room-joined", this.onRoomJoined.bind(this));
     }
 
     //socket msges and send
@@ -180,6 +180,7 @@ class InLobby implements GameState {
         console.log("the code is: ", this.game.code)
         this.board.addDisplayTextBox("code", 150, 20, 100, 50, this.game.code, 48, true)
         this.board.addTextButton("start", 750, 700, 250, 60, "START", () => this.sendGameStart(), true, 48)
+        this.board.addTextButton("leave", 750, 300, 350, 60, "LEAVE", () => this.sendLeaveRoom(), true, 48)
 
         this.boardEventManager.addEvent("roomcodeupdate", (code: string) => {
             this.boardEventManager.board.getDisplayTextBox("code")?.UpdateText(code)
@@ -217,6 +218,11 @@ class InLobby implements GameState {
 
     sendGameStart() {
         this.game.socketEventBus.emit("start-game")
+    }
+
+    sendLeaveRoom() {
+        this.game.socketEventBus.emit("leave-room")
+        this.game.currentState = this.game.states.mainMenuState
     }
 }
 

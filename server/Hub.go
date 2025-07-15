@@ -75,7 +75,7 @@ func (h *Hub) Run() {
 
 				newCode := RandomUppercaseString6()
 				fmt.Println("created new lobby code")
-				lobby := NewLobby(newCode, plrmsg.player)
+				lobby := NewLobby(h, newCode, plrmsg.player)
 				lobbies[newCode] = lobby
 				go lobby.Run()
 				fmt.Println("new lobby created")
@@ -96,6 +96,7 @@ func (h *Hub) Run() {
 					fmt.Println("lobby does not exist, wtf?")
 
 				}
+				fmt.Println("lobby GONE RIPRIPRIP")
 				close(lobby.readHub)
 				close(lobby.Inbound)
 				delete(lobbies, lbmsg.lobbyCode)
