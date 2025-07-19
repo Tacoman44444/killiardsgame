@@ -59,6 +59,12 @@ type ClientMessage =
     } 
     | {
         type: "simulation-done"
+    }
+    | {
+        type: "return-to-mainmenu"
+    }
+    | {
+        type: "return-to-lobby"
     };
 
 export type ServerMessage = 
@@ -114,6 +120,12 @@ export type ServerMessage =
         type: "game-finished";
         result: string;
         winner_name: string;
+    }
+    | {
+        type: "lobby-closed";
+    }
+    | {
+        type: "return-to-lobby";
     };
 
 
@@ -200,6 +212,20 @@ export class SocketManager {
         this.send(msg);
     }
 
+    sendReturnToMainMenu() {
+        const msg: ClientMessage = {
+            type: "return-to-mainmenu"
+        };
+        this.send(msg)
+    }
+
+    sendReturnToLobby() {
+        const msg: ClientMessage = {
+            type: "return-to-lobby"
+        };
+        this.send(msg)
+    }
+
     private subscribeToEventBus() {
         this.eventManager.subscribe("create-room", this.sendCreateRoomRequest.bind(this));
         this.eventManager.subscribe("start-game", this.sendStartGameRequest.bind(this));
@@ -208,6 +234,8 @@ export class SocketManager {
         this.eventManager.subscribe("send-wall", this.sendWall.bind(this));
         this.eventManager.subscribe("send-turn", this.sendTurn.bind(this));
         this.eventManager.subscribe("simulation-done", this.sendSimulationDone.bind(this));
+        this.eventManager.subscribe("return-to-mainmenu", this.sendReturnToMainMenu.bind(this));
+        this.eventManager.subscribe("return-to-lobby", this.sendReturnToLobby.bind(this));
     }
 
     private handleMessage(e: MessageEvent) {

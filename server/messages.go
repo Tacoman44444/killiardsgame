@@ -18,6 +18,8 @@ const (
 	ServerWallUpdate    ServerMessageType = "wall-update"
 	ServerMapUpdate     ServerMessageType = "map-update"
 	ServerGameFinished  ServerMessageType = "game-finished"
+	ServerLobbyClosed   ServerMessageType = "lobby-closed"
+	ServerReturnToLobby ServerMessageType = "return-to-lobby"
 )
 
 type ServerMessage interface {
@@ -119,6 +121,18 @@ type GameFinishedMessage struct {
 
 func (m GameFinishedMessage) isServerMessage() {}
 
+type LobbyClosedMessage struct {
+	Type ServerMessageType `json:"type"`
+}
+
+func (m LobbyClosedMessage) isServerMessage() {}
+
+type ReturnToLobbyMessage struct {
+	Type ServerMessageType `json:"type"`
+}
+
+func (m ReturnToLobbyMessage) isServerMessage() {}
+
 // CREATING NEW MESSAGES
 
 func newRoomCreatedMessage(code string) RoomCreatedMessage {
@@ -173,17 +187,27 @@ func newGameFinishedMessage(result string, winnerName string) GameFinishedMessag
 	return GameFinishedMessage{ServerGameFinished, result, winnerName}
 }
 
+func newLobbyClosedMessage() LobbyClosedMessage {
+	return LobbyClosedMessage{ServerLobbyClosed}
+}
+
+func newReturnToLobbyMessage() ReturnToLobbyMessage {
+	return ReturnToLobbyMessage{ServerReturnToLobby}
+}
+
 type ClientMessageType string
 
 const (
-	ClientCreateRoom     ClientMessageType = "create-room"
-	ClientStartGame      ClientMessageType = "start-game"
-	ClientJoinRoom       ClientMessageType = "join-room"
-	ClientLeaveRoom      ClientMessageType = "leave-room"
-	ClientSendWall       ClientMessageType = "send-wall"
-	ClientSendTurn       ClientMessageType = "send-turn"
-	ClientSendId         ClientMessageType = "send-id"
-	ClientSimulationDone ClientMessageType = "simulation-done"
+	ClientCreateRoom       ClientMessageType = "create-room"
+	ClientStartGame        ClientMessageType = "start-game"
+	ClientJoinRoom         ClientMessageType = "join-room"
+	ClientLeaveRoom        ClientMessageType = "leave-room"
+	ClientSendWall         ClientMessageType = "send-wall"
+	ClientSendTurn         ClientMessageType = "send-turn"
+	ClientSendId           ClientMessageType = "send-id"
+	ClientSimulationDone   ClientMessageType = "simulation-done"
+	ClientReturnToMainMenu ClientMessageType = "return-to-mainmenu"
+	ClientReturnToLobby    ClientMessageType = "return-to-lobby"
 )
 
 type ClientMessage struct {

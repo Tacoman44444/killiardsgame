@@ -21,6 +21,7 @@ const (
 	LobbySendMakeOwner
 	LobbySendGameOver
 	LobbyClose // :<
+	LobbySendPlayerToLobby
 )
 
 type LobbyMessage struct {
@@ -110,6 +111,11 @@ func (q *TurnQueue) Size() int {
 	return len(q.data)
 }
 
+func (q *TurnQueue) Clear() {
+	q.data = []*Player{}
+	q.currentIdx = 0
+}
+
 type Lobby struct {
 	code              string
 	Inbound           chan PlayerMessage
@@ -147,7 +153,6 @@ func NewLobby(hub *Hub, code string, owner *Player) *Lobby {
 	lb.currentState = lb.waitingforplayers
 	lb.currentState.Enter(&lb)
 	lb.players[owner.conn] = owner
-	lb.queue.Add(owner)
 
 	return &lb
 }
@@ -207,7 +212,11 @@ type LobbyState interface {
 
 type LobbyWaitingForPlayers struct{}
 
-func (l LobbyWaitingForPlayers) Enter(lobby *Lobby) {}
+func (l LobbyWaitingForPlayers) Enter(lobby *Lobby) {
+	fmt.Println("we entered lobby waiting for players")
+	lobby.queue.Clear()
+	lobby.eliminated = []*Player{}
+}
 func (l LobbyWaitingForPlayers) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lobby *Lobby) {
 	if !channelOpen {
 	}
@@ -222,6 +231,10 @@ func (l LobbyWaitingForPlayers) HandlePlayerMessage(pm PlayerMessage, channelOpe
 				playerUsernames = append(playerUsernames, value.username)
 			}
 			lobby.gameState = GetNewGame(playerIDs, playerUsernames)
+			// initialize the turn queue
+			for _, value := range lobby.players {
+				lobby.queue.Add(value)
+			}
 
 			for _, value := range lobby.players { //sending the message to all players
 				msg := LobbyMessage{
@@ -243,7 +256,6 @@ func (l LobbyWaitingForPlayers) HandlePlayerMessage(pm PlayerMessage, channelOpe
 	case PlayerLeaveRoom:
 		fmt.Println("some brudda just left the room....  THIS BURDDA:  ", pm.senderID)
 		delete(lobby.players, pm.sender)
-		lobby.queue.RemoveByID(pm.senderID)
 
 		if lobby.queue.Size() == 0 {
 			msg := LobbyMessage{
@@ -270,7 +282,6 @@ func (l LobbyWaitingForPlayers) HandleHubMessage(hm HubMessage, channelOpen bool
 	switch hm.msgType {
 	case HubSendPlayerToLobby:
 		lobby.players[hm.player.conn] = hm.player
-		lobby.queue.Add(hm.player)
 	}
 }
 func (l LobbyWaitingForPlayers) Exit(lobby *Lobby) {}
@@ -448,9 +459,53 @@ func (l LobbyProcessingTurn) Exit(lobby *Lobby)                                 
 
 type LobbyGameOver struct{}
 
-func (l LobbyGameOver) Enter(lobby *Lobby) {}
+func (l LobbyGameOver) Enter(lobby *Lobby) {
+	fmt.Println("entering lobby game voer state")
+}
 func (l LobbyGameOver) HandlePlayerMessage(pm PlayerMessage, channelOpen bool, lobby *Lobby) {
-	//handle player returning to lobby
+	//you can either quit to main menu, or if you are the party leader you can take eveyone to the lobby screen.
+	if pm.msgType == PlayerReturnToMainMenu {
+		fmt.Println("some brudda just quit to main menu....  THIS BURDDA:  ", pm.senderID)
+		delete(lobby.players, pm.sender)
+		lobby.queue.RemoveByID(pm.senderID)
+
+		if lobby.queue.Size() == 0 {
+			msg := LobbyMessage{
+				msgType:   LobbyClose,
+				lobbyCode: lobby.code,
+			}
+			lobby.hub.readLobby <- msg
+			return
+		}
+
+		if pm.player == lobby.owner {
+			//send everyone to the main menu and close the lobby.
+			//send a lobby close message to the hub and the player
+			msg := LobbyMessage{
+				msgType:   LobbyClose,
+				lobbyCode: lobby.code,
+			}
+			for _, value := range lobby.players {
+				value.readLobby <- msg
+			}
+			lobby.hub.readLobby <- msg
+		}
+	}
+
+	if pm.msgType == PlayerReturnToLobby {
+		fmt.Println("recieved a player return to lobby msg")
+		if pm.player == lobby.owner {
+			msg := LobbyMessage{
+				msgType: LobbySendPlayerToLobby,
+			}
+			for _, value := range lobby.players {
+				value.readLobby <- msg
+			}
+			fmt.Println("goin tp waiting for players")
+			lobby.SetState(lobby.waitingforplayers)
+		}
+	}
+
 }
 func (l LobbyGameOver) HandleHubMessage(hm HubMessage, channelOpen bool, lobby *Lobby) {}
 func (l LobbyGameOver) Exit(lobby *Lobby)                                              {}

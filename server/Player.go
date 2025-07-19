@@ -20,6 +20,8 @@ const (
 	PlayerSimulationDone
 	PlayerJoinRoom
 	PlayerCreateRoom
+	PlayerReturnToMainMenu
+	PlayerReturnToLobby
 )
 
 type PlayerMessage struct {
@@ -251,12 +253,58 @@ func (p *PlayerInGame) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, pla
 	case LobbySendGameOver:
 		serverMsg := newGameFinishedMessage(lm.result, lm.winnerName)
 		player.WriteToClient(serverMsg, player.id)
+		player.SetState(&PlayerGameOver{})
 	}
 }
 
 func (p *PlayerInGame) HandleHubMessage(hm HubMessage, channelOpen bool, player *Player) {}
 
 func (p *PlayerInGame) Exit() {}
+
+type PlayerGameOver struct{}
+
+func (p *PlayerGameOver) Enter(player *Player) {}
+
+func (p *PlayerGameOver) HandleClientMessage(cm ClientMessage, channelOpen bool, player *Player) {
+	//return to lobby and return to mainmenu
+	switch cm.Type {
+	case ClientReturnToLobby:
+		msg := PlayerMessage{
+			msgType:  PlayerReturnToLobby,
+			player:   player,
+			sender:   player.conn,
+			senderID: player.id,
+		}
+		player.lobby.Inbound <- msg
+	case ClientReturnToMainMenu:
+		msg := PlayerMessage{
+			msgType:  PlayerReturnToMainMenu,
+			player:   player,
+			sender:   player.conn,
+			senderID: player.id,
+		}
+		player.lobby.Inbound <- msg
+		player.SetState(&PlayerInHub{})
+	}
+}
+
+func (p *PlayerGameOver) HandleLobbyMessage(lm LobbyMessage, channelOpen bool, player *Player) {
+	//lobby close -- if party owner quits
+	switch lm.msgType {
+	case LobbySendPlayerToLobby:
+		serverMsg := newReturnToLobbyMessage()
+		player.WriteToClient(serverMsg, player.id)
+		player.SetState(&PlayerInLobby{l: player.lobby})
+	case LobbyClose:
+		serverMsg := newLobbyClosedMessage()
+		player.WriteToClient(serverMsg, player.id)
+		player.SetState(&PlayerInHub{})
+	}
+}
+
+func (p *PlayerGameOver) HandleHubMessage(hm HubMessage, channelOpen bool, player *Player) {}
+
+func (p *PlayerGameOver) Exit() {}
 
 type Player struct {
 	id           string

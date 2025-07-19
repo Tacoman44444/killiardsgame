@@ -12,10 +12,12 @@ interface GameState {
     board:      Board
     boardEventManager: BoardEventManager
     game: Game
+    Enter() : void;
     initializeBoard() : void;
     initializeWorld(world: World) : void;
     processInput(input: any) : void;
     render(ctx: CanvasRenderingContext2D) : void;
+    Exit() : void;
 }
 
 export enum MouseButton {
@@ -46,6 +48,10 @@ class MainMenuState implements GameState {
         this.initializeBoard();
     }
 
+    Enter() {
+
+    }
+
     initializeBoard() {
         this.board.addInputTextBox("username", 650, 400, 300, 50, 13);
         this.board.addInputTextBox("code", 725, 500, 150, 40, 6);
@@ -74,6 +80,10 @@ class MainMenuState implements GameState {
         return this.board.inputBoxes.find(box => box.name === "code")?.text || "";
     }
 
+    Exit() {
+
+    }
+
     //handle socket event and send messages now ... 
 
     sendJoinRequest() {
@@ -85,7 +95,7 @@ class MainMenuState implements GameState {
         } else {
             console.log("sending this code to the server: ", code)
             this.game.socketEventBus.emit("join-room", { code: code, name: name });
-            this.game.currentState = this.game.states.requestedForLobby;
+            this.game.SetState(this.game.states.requestedForLobby)
         }
 
     }
@@ -96,7 +106,7 @@ class MainMenuState implements GameState {
             console.log("invalid details")
         }
         this.game.socketEventBus.emit("create-room", name)
-        this.game.currentState = this.game.states.requestedForLobby;
+        this.game.SetState(this.game.states.requestedForLobby)
     }
 }
 
@@ -115,6 +125,10 @@ class RequestedForLobby implements GameState {
         this.code = "";
         this.sub();
         this.initializeBoard();
+    }
+
+    Enter() {
+
     }
 
     initializeBoard() {
@@ -138,15 +152,19 @@ class RequestedForLobby implements GameState {
         this.game.socketEventBus.subscribe("room-joined", this.onRoomJoined.bind(this));
     }
 
+    Exit() {
+
+    }
+
     //socket msges and send
 
     onInvalidCode(msg: ServerMessage) {
-        this.game.currentState = this.game.states.mainMenuState;
+        this.game.SetState(this.game.states.mainMenuState)
     }
 
     onRoomCreated(msg: ServerMessage) {
         if (msg.type == "room-created") {
-            this.game.currentState = this.game.states.inLobby; 
+            this.game.SetState(this.game.states.inLobby)
             this.game.currentState.boardEventManager.onEvent("roomcodeupdate", msg.code); 
         }
         
@@ -154,7 +172,7 @@ class RequestedForLobby implements GameState {
 
     onRoomJoined(msg: ServerMessage) {
         if (msg.type == "room-joined") {
-            this.game.currentState = this.game.states.inLobby;
+            this.game.SetState(this.game.states.inLobby)
             this.game.currentState.boardEventManager.onEvent("roomcodeupdate", msg.code);
         }
 
@@ -176,11 +194,15 @@ class InLobby implements GameState {
         this.sub();
     }
 
+    Enter() {
+
+    }
+
     initializeBoard() {
         console.log("the code is: ", this.game.code)
         this.board.addDisplayTextBox("code", 150, 20, 100, 50, this.game.code, 48, true)
-        this.board.addTextButton("start", 750, 700, 250, 60, "START", () => this.sendGameStart(), true, 48)
-        this.board.addTextButton("leave", 750, 300, 350, 60, "LEAVE", () => this.sendLeaveRoom(), true, 48)
+        this.board.addTextButton("start", 700, 700, 250, 60, "START", () => this.sendGameStart(), true, 48)
+        this.board.addTextButton("leave", 700, 800, 250, 60, "LEAVE", () => this.sendLeaveRoom(), true, 48)
 
         this.boardEventManager.addEvent("roomcodeupdate", (code: string) => {
             this.boardEventManager.board.getDisplayTextBox("code")?.UpdateText(code)
@@ -202,12 +224,16 @@ class InLobby implements GameState {
         this.game.socketEventBus.subscribe("game-start", this.onGameStarted.bind(this));
     }
 
+    Exit() {
+
+    }
+
     //socket n send
 
     onGameStarted(msg: ServerMessage) {
         if (msg.type == "game-start") {
             console.log("GAME START RECEIVED, msg =", JSON.stringify(msg, null, 2));
-            this.game.currentState = this.game.states.inGame;
+            this.game.SetState(this.game.states.inGame)
             let player = new Puck(msg.player.id, msg.player.username, msg.player.position_x, msg.player.position_y)
             let opps: Puck[] = []
             msg.other_players.forEach((opp) => opps.push(new Puck(opp.id, opp.username, opp.position_x, opp.position_y)))
@@ -218,11 +244,12 @@ class InLobby implements GameState {
 
     sendGameStart() {
         this.game.socketEventBus.emit("start-game")
+        console.log("sending game start")
     }
 
     sendLeaveRoom() {
         this.game.socketEventBus.emit("leave-room")
-        this.game.currentState = this.game.states.mainMenuState
+        this.game.SetState(this.game.states.mainMenuState)
     }
 }
 
@@ -240,6 +267,29 @@ class InGame implements GameState {
         this.world = null;
         this.game = game;
         this.initializeBoard()
+        this.sub()
+    }
+
+    Enter() {
+        let winBox = this.board.getDisplayTextBox("win")
+        if (winBox) { winBox.visible = false }
+
+        let drawBox = this.board.getDisplayTextBox("draw")
+        if (drawBox) { drawBox.visible = false }
+
+        let gameoverBox = this.board.getDisplayTextBox("gameover")
+        if (gameoverBox) { gameoverBox.visible = false }
+
+        let lobbyBtn = this.board.getTextButton("return-to-lobby")
+        if (lobbyBtn) { lobbyBtn.visible = false }
+
+        let menuBtn = this.board.getTextButton("return-to-mainmenu")
+        if (menuBtn) { menuBtn.visible = false }
+    }
+
+    private sub() {
+        this.game.socketEventBus.subscribe("lobby-closed", this.onLobbyClosed.bind(this))
+        this.game.socketEventBus.subscribe("return-to-lobby", this.onReturnToLobby.bind(this))
     }
 
     initializeBoard() {
@@ -250,9 +300,11 @@ class InGame implements GameState {
         this.board.addImage("3", 40, 840, 50, 100, new SpriteComponent("power_level_3"), false);
         this.board.addImage("4", 40, 730, 50, 100, new SpriteComponent("power_level_4"), false);
         this.board.addImage("5", 40, 620, 50, 100, new SpriteComponent("power_level_5"), false);
-        this.board.addDisplayTextBox("gameover", 800, 400, 1200, 400, "GAME OVER", 98, false)
-        this.board.addDisplayTextBox("win", 800, 700, 200, 40, "", 48, false)
-        this.board.addDisplayTextBox("draw", 200, 100, 200, 40, "DRAW", 48, false)
+        this.board.addDisplayTextBox("gameover", 800, 250, 1200, 400, "GAME OVER", 98, false)
+        this.board.addDisplayTextBox("win", 800, 500, 200, 40, "", 64, false)
+        this.board.addDisplayTextBox("draw", 800, 500, 200, 40, "DRAW", 64, false)
+        this.board.addTextButton("return-to-lobby", 800, 700, 250, 60, "LOBBY", () => this.sendReturnToLobby(), false, 48)
+        this.board.addTextButton("return-to-mainmenu", 800, 800, 250, 60, "HUB", () => this.sendReturnToMainMenu(), false, 48)
 
 
         this.boardEventManager.addEvent("winner", (name: string) => {
@@ -267,6 +319,11 @@ class InGame implements GameState {
             }
         })
         this.boardEventManager.addEvent("draw", () => {
+            let gameoverBox = this.boardEventManager.board.getDisplayTextBox("gameover")
+            if (gameoverBox) {
+                gameoverBox.visible = true;
+            }
+
             let drawBox = this.boardEventManager.board.getDisplayTextBox("draw")
             if (drawBox) {
                 drawBox.visible = true;
@@ -333,6 +390,17 @@ class InGame implements GameState {
                 }
             }
         })
+        this.boardEventManager.addEvent("showbuttons", () => {
+            let lobbyBtn = this.board.getTextButton("return-to-lobby");
+            if (lobbyBtn) {
+                lobbyBtn.visible = true;
+            }
+
+            let menuBtn = this.board.getTextButton("return-to-mainmenu");
+            if (menuBtn) {
+                menuBtn.visible = true;
+            }
+        })
     }
 
     initializeWorld(world: World) {
@@ -353,16 +421,34 @@ class InGame implements GameState {
         this.board.render(ctx); 
     }
 
-    
+    Exit() {
+        
+    }
 
     //handle them socket events and send them messages
 
-    onGameOver(msg: ServerMessage) {
-
+    sendReturnToLobby() {
+        this.game.socketEventBus.emit("return-to-lobby")
     }
 
-}
+    sendReturnToMainMenu() {
+        this.game.socketEventBus.emit("return-to-mainmenu")
+        this.game.SetState(this.game.states.mainMenuState)
+    }
 
+    onLobbyClosed(msg: ServerMessage) {
+        if (msg.type == "lobby-closed") {
+            this.game.SetState(this.game.states.mainMenuState)
+        }
+    }
+
+    onReturnToLobby(msg: ServerMessage) {
+        if (msg.type == "return-to-lobby") {
+            this.game.SetState(this.game.states.inLobby)
+        }
+    }    
+
+}
 
 export class Game {
     canvas: HTMLCanvasElement;
@@ -391,6 +477,12 @@ export class Game {
         }
         this.currentState = this.states.mainMenuState;
         this.code = "";
+    }
+
+    SetState(state: GameState) {
+        this.currentState.Exit();
+        this.currentState = state;
+        this.currentState.Enter();
     }
 
     Play() {

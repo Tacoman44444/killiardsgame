@@ -65,6 +65,14 @@ export class Board {
         }
     }
 
+    getTextButton(id: string): TextButton | undefined {
+        for (const btn of this.textButtons) {
+            if (btn.name == id) {
+                return btn;
+            }
+        }
+    }
+
 }
 
 export class BoardEventManager {

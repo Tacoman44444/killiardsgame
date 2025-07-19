@@ -402,6 +402,9 @@ class ProcessingState implements WorldState {
                 console.log("YOU LOSE")
                 this.world.camera.SwitchFollow(this.world.opps[0].circle.center);
             }
+
+            //activate BUTTONS
+            this.world.boardEventManager.onEvent("showbuttons")
         }
     }
 }
