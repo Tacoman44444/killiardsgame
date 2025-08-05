@@ -457,6 +457,7 @@ export class Game {
     socketEventBus: SocketEventManager;
     soundManager: SoundManager;
     code: string;
+    scale: number;
     states: {
         mainMenuState: GameState;
         requestedForLobby: GameState;
@@ -477,6 +478,8 @@ export class Game {
         }
         this.currentState = this.states.mainMenuState;
         this.code = "";
+        this.scale = 0;
+        this.resizeWindow();
     }
 
     SetState(state: GameState) {
@@ -487,7 +490,11 @@ export class Game {
 
     Play() {
     const loop = () => {
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0); // apply scale
+
         this.currentState.render(this.ctx);
 
         requestAnimationFrame(loop);
@@ -507,8 +514,8 @@ export class Game {
     this.canvas.addEventListener("mousedown", (e) => {
         const rect = this.canvas.getBoundingClientRect();
         const mousePos = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: (e.clientX - rect.left) / this.scale,
+            y: (e.clientY - rect.top) / this.scale
         };
         const button = getMouseButton(e.button);
         this.currentState.processInput({ type: "mousedown", event: e, buttonType: button, cameraX: mousePos.x, cameraY: mousePos.y });
@@ -517,8 +524,8 @@ export class Game {
     this.canvas.addEventListener("mouseup", (e) => {
         const rect = this.canvas.getBoundingClientRect();
         const mousePos = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: (e.clientX - rect.left) / this.scale,
+            y: (e.clientY - rect.top) / this.scale
         };
         const button = getMouseButton(e.button);
         this.currentState.processInput({ type: "mouseup", event: e, buttonType: button, cameraX: mousePos.x, cameraY: mousePos.y });
@@ -527,8 +534,8 @@ export class Game {
     this.canvas.addEventListener("mousemove", (e) => {
         const rect = this.canvas.getBoundingClientRect();
         const mousePos = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: (e.clientX - rect.left) / this.scale,
+            y: (e.clientY - rect.top) / this.scale
         };
         this.currentState.processInput({ type: "mousemove", event: e, cameraX: mousePos.x, cameraY: mousePos.y });
     });
@@ -536,8 +543,37 @@ export class Game {
     this.canvas.addEventListener("contextmenu", (e) => {
         e.preventDefault();
     });
+
+    window.addEventListener("resize", () => {
+        this.resizeWindow();
+    });
     }
 
+    resizeWindow() {
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        // Target aspect ratio: 4:3
+        let newWidth = windowWidth;
+        let newHeight = (newWidth * 3) / 4;
+
+        if (newHeight > windowHeight) {
+            newHeight = windowHeight;
+            newWidth = (newHeight * 4) / 3;
+        }
+
+        // Set actual canvas drawing size (resolution)
+        this.canvas.width = newWidth;
+        this.canvas.height = newHeight;
+
+        // Set CSS size (how big it looks)
+        this.canvas.style.width = `${newWidth}px`;
+        this.canvas.style.height = `${newHeight}px`;
+
+        const scaleX = this.canvas.width / 1600;
+        const scaleY = this.canvas.height / 1200;
+        this.scale = Math.min(scaleX, scaleY); 
+    }
 }
 
 function getMouseButton(button: number): MouseButton | null {
